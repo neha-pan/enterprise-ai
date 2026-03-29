@@ -1,0 +1,1709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Design Benchmarking — Enterprise AI Light (Blu)</title>
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d12;
+    --surface: #16161e;
+    --surface2: #1e1e28;
+    --border: rgba(255,255,255,0.08);
+    --accent: #3b6ef5;
+    --accent2: #7c5cbf;
+    --text: #f0f0f5;
+    --muted: #8888aa;
+    --card-r: 14px;
+    --slide-w: 1280px;
+    --slide-h: 720px;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  /* ── Slide Container ── */
+  #deck {
+    position: relative;
+    width: 100vw; height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .slide {
+    position: absolute;
+    width: var(--slide-w);
+    height: var(--slide-h);
+    background: var(--surface);
+    border-radius: 20px;
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity .35s ease, transform .35s ease;
+  }
+
+  .slide.active {
+    display: flex;
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── Slide Header ── */
+  .slide-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 28px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .slide-header .slide-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .slide-header .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(59,110,245,.18);
+    color: #7aa4ff;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  /* ── Column Grid ── */
+  .cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .col {
+    display: flex;
+    flex-direction: column;
+    padding: 22px 24px;
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .col:last-child { border-right: none; }
+
+  .col-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    flex-shrink: 0;
+  }
+
+  /* ── Screenshot Frame ── */
+  .screenshot-wrap {
+    flex: 1;
+    min-height: 0;
+    border-radius: var(--card-r);
+    overflow: hidden;
+    background: #0a0a0f;
+    border: 1px solid var(--border);
+    position: relative;
+  }
+
+  .screenshot-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top left;
+    display: block;
+  }
+
+  .screenshot-wrap img.center { object-position: center center; }
+  .screenshot-wrap img.bottom { object-position: bottom center; }
+  .screenshot-wrap img.top-center { object-position: top center; }
+
+  /* ── Crop utility ── */
+  .crop {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+  .crop img {
+    position: absolute;
+  }
+
+  /* ── Highlight Overlay ── */
+  .highlight-box {
+    position: absolute;
+    border: 2.5px solid #f5c842;
+    border-radius: 6px;
+    box-shadow: 0 0 0 3000px rgba(0,0,0,.38);
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* ── Benchmark Card ── */
+  .bench-card {
+    flex: 1;
+    min-height: 0;
+    border-radius: var(--card-r);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .bench-card-header {
+    padding: 10px 14px 9px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .platform-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .platform-name {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  .bench-card-body {
+    flex: 1;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  /* ── Principle Column ── */
+  .principle-col {
+    background: var(--surface2);
+  }
+
+  .principle-col .col-label { color: #7aa4ff; }
+
+  .principle-number {
+    font-size: 48px;
+    font-weight: 800;
+    color: rgba(59,110,245,.18);
+    line-height: 1;
+    margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .principle-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 10px;
+    line-height: 1.3;
+  }
+
+  .principle-body {
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+
+  .principle-body strong {
+    color: #c8c8e0;
+    font-weight: 600;
+  }
+
+  .tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 14px;
+  }
+
+  .tag {
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    letter-spacing: .04em;
+  }
+
+  .tag-blue { background: rgba(59,110,245,.2); color: #7aa4ff; }
+  .tag-purple { background: rgba(124,92,191,.2); color: #b89fff; }
+  .tag-green { background: rgba(34,197,94,.15); color: #6ee7a0; }
+  .tag-orange { background: rgba(249,115,22,.15); color: #fdba74; }
+  .tag-pink { background: rgba(236,72,153,.15); color: #f9a8d4; }
+
+  /* ── Mockup Elements ── */
+  .mockup {
+    font-size: 11.5px;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .mockup-login {
+    background: #f4f5f7;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    border-radius: 10px;
+    font-family: -apple-system, sans-serif;
+  }
+
+  .mockup-headline {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  .mockup-sub {
+    font-size: 10px;
+    color: #666;
+    text-align: center;
+  }
+
+  .mockup-field {
+    width: 100%;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #999;
+  }
+
+  .mockup-btn {
+    width: 100%;
+    background: #10a37f;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 0;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    cursor: default;
+  }
+
+  .mockup-btn.copilot { background: #0f6cbd; }
+  .mockup-btn.gemini { background: linear-gradient(90deg, #4285f4, #34a853); }
+  .mockup-btn.claude { background: #c96442; }
+
+  .mockup-sidebar {
+    background: #f9f9f9;
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .mockup-sidebar-item {
+    padding: 6px 10px;
+    font-size: 10px;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .mockup-sidebar-item.active { background: #e8e8e8; font-weight: 600; }
+
+  .mockup-sidebar-time {
+    font-size: 9px;
+    color: #999;
+  }
+
+  .mockup-chat-bubble {
+    border-radius: 12px;
+    padding: 7px 11px;
+    font-size: 10.5px;
+    max-width: 80%;
+    line-height: 1.4;
+  }
+
+  .mockup-chat-bubble.user {
+    background: #10a37f;
+    color: white;
+    align-self: flex-end;
+    margin-left: auto;
+  }
+
+  .mockup-chat-bubble.user.copilot { background: #0f6cbd; }
+  .mockup-chat-bubble.user.claude { background: #c96442; }
+  .mockup-chat-bubble.user.gemini { background: #4285f4; }
+
+  .mockup-chat-bubble.bot {
+    background: white;
+    color: #111;
+    border: 1px solid #e5e5e5;
+    align-self: flex-start;
+  }
+
+  .mockup-thinking {
+    background: #f0f0f0;
+    border-radius: 8px;
+    padding: 7px 11px;
+    font-size: 10px;
+    color: #555;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dots span {
+    display: inline-block;
+    width: 4px; height: 4px;
+    background: #888;
+    border-radius: 50%;
+    margin: 0 1px;
+    animation: blink 1.2s infinite;
+  }
+  .dots span:nth-child(2) { animation-delay: .2s; }
+  .dots span:nth-child(3) { animation-delay: .4s; }
+
+  @keyframes blink {
+    0%, 80%, 100% { opacity: .3; }
+    40% { opacity: 1; }
+  }
+
+  .mockup-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: 3px 9px;
+    font-size: 9.5px;
+    color: #333;
+    background: white;
+  }
+
+  .mockup-notif {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    padding: 7px 10px;
+    font-size: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .mockup-notif-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .mockup-notif-title { font-weight: 600; color: #111; font-size: 10px; }
+
+  .mockup-badge {
+    font-size: 8.5px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+  }
+
+  .mockup-badge.urgent { background: #fee2e2; color: #dc2626; }
+  .mockup-badge.review { background: #fef9c3; color: #92400e; }
+  .mockup-badge.blocked { background: #ffe4e6; color: #be123c; }
+  .mockup-badge.action { background: #dbeafe; color: #1d4ed8; }
+
+  .mockup-notif-body { color: #666; font-size: 9.5px; }
+  .mockup-notif-time { color: #bbb; font-size: 9px; }
+
+  .flex-col { display: flex; flex-direction: column; gap: 6px; }
+  .flex-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .mockup-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: #333;
+  }
+
+  .step-check {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #22c55e;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .step-check svg { width: 8px; height: 8px; }
+
+  .mockup-diag {
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 7px 10px;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .mockup-diag-title { font-size: 10px; font-weight: 600; color: #111; }
+  .mockup-diag-sub { font-size: 9px; color: #888; }
+
+  .mockup-dark {
+    background: #212121;
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mockup-dark .mockup-sidebar-item {
+    background: #2a2a2a;
+    color: #eee;
+    border-bottom-color: #333;
+  }
+
+  .mockup-dark .mockup-chat-bubble.bot {
+    background: #2e2e2e;
+    color: #eee;
+    border-color: #3a3a3a;
+  }
+
+  /* ── Title Slide ── */
+  .title-slide {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 20px;
+    padding: 60px;
+    background: linear-gradient(135deg, #0d0d12 0%, #131320 50%, #0d0d18 100%);
+  }
+
+  .title-slide .eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: #7aa4ff;
+    padding: 4px 14px;
+    border: 1px solid rgba(59,110,245,.3);
+    border-radius: 20px;
+  }
+
+  .title-slide h1 {
+    font-size: 48px;
+    font-weight: 800;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #ffffff 0%, #a0a0cc 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .title-slide .subtitle {
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 560px;
+    line-height: 1.6;
+  }
+
+  .title-slide .platform-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .platform-pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .toc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 22px 24px;
+    flex: 1;
+  }
+
+  .toc-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+  }
+
+  .toc-num {
+    font-size: 20px;
+    font-weight: 800;
+    color: rgba(59,110,245,.35);
+    line-height: 1;
+    width: 28px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .toc-text strong { font-size: 13px; display: block; margin-bottom: 3px; color: var(--text); }
+  .toc-text span { font-size: 11px; color: var(--muted); }
+
+  /* ── Nav ── */
+  #nav {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(22,22,30,.9);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 8px 16px;
+    z-index: 100;
+  }
+
+  #nav button {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+
+  #nav button:hover { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.2); }
+  #nav button:disabled { opacity: .3; cursor: default; }
+
+  #slide-counter {
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 64px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .slide.active .col:nth-child(1) { animation: fadeUp .4s ease .05s both; }
+  .slide.active .col:nth-child(2) { animation: fadeUp .4s ease .15s both; }
+  .slide.active .col:nth-child(3) { animation: fadeUp .4s ease .25s both; }
+  .slide.active .toc-item { animation: fadeUp .35s ease both; }
+  .slide.active .toc-item:nth-child(2) { animation-delay: .06s; }
+  .slide.active .toc-item:nth-child(3) { animation-delay: .12s; }
+  .slide.active .toc-item:nth-child(4) { animation-delay: .18s; }
+  .slide.active .toc-item:nth-child(5) { animation-delay: .24s; }
+  .slide.active .toc-item:nth-child(6) { animation-delay: .30s; }
+  .slide.active .toc-item:nth-child(7) { animation-delay: .36s; }
+  .slide.active .toc-item:nth-child(8) { animation-delay: .42s; }
+
+  .section-title-slide {
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0d0d12 0%, #13131f 100%);
+  }
+
+  .section-title-slide .big-num {
+    font-size: 120px;
+    font-weight: 900;
+    color: rgba(59,110,245,.1);
+    line-height: 1;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .section-title-slide .content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* scrollable bench body */
+  .bench-card-body.scroll { overflow-y: auto; }
+  .bench-card-body.scroll::-webkit-scrollbar { width: 4px; }
+  .bench-card-body.scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 4px; }
+
+  /* platform colors */
+  .chatgpt   { color: #10a37f; } .dot-chatgpt   { background: #10a37f; }
+  .claude    { color: #c96442; } .dot-claude    { background: #c96442; }
+  .copilot   { color: #0f6cbd; } .dot-copilot   { background: #0f6cbd; }
+  .gemini    { color: #4285f4; } .dot-gemini    { background: #4285f4; }
+  .rufus     { color: #ff9900; } .dot-rufus     { background: #ff9900; }
+  .bajaj     { color: #2155cd; } .dot-bajaj     { background: #2155cd; }
+
+  .bench-bg-chatgpt { background: rgba(16,163,127,.07); }
+  .bench-bg-claude  { background: rgba(201,100,66,.07); }
+  .bench-bg-copilot { background: rgba(15,108,189,.07); }
+  .bench-bg-gemini  { background: rgba(66,133,244,.07); }
+  .bench-bg-rufus   { background: rgba(255,153,0,.07); }
+
+  .multi-bench {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .multi-bench .bench-card { flex: 1; min-height: 0; }
+
+  .mockup-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 4px;
+  }
+
+  .img-caption {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 6px;
+    flex-shrink: 0;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div id="deck">
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 0 — Title                                        -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide active" id="s0">
+    <div class="title-slide" style="height:100%;">
+      <div class="eyebrow">Design Benchmarking Report</div>
+      <h1>Blu — Enterprise AI<br>Design Decisions</h1>
+      <p class="subtitle">Every UI element mapped to best practices from leading AI platforms — Claude, ChatGPT, Microsoft Copilot, Gemini, Amazon Rufus.</p>
+      <div class="platform-row">
+        <div class="platform-pill"><span class="platform-dot dot-chatgpt"></span>ChatGPT</div>
+        <div class="platform-pill"><span class="platform-dot dot-claude"></span>Claude</div>
+        <div class="platform-pill"><span class="platform-dot dot-copilot"></span>Copilot</div>
+        <div class="platform-pill"><span class="platform-dot dot-gemini"></span>Gemini</div>
+        <div class="platform-pill"><span class="platform-dot dot-rufus"></span>Amazon Rufus</div>
+        <div class="platform-pill"><span class="platform-dot dot-bajaj"></span>Bajaj Internal</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 1 — Table of Contents                           -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide" id="s1">
+    <div class="slide-header">
+      <span class="slide-title">Table of Contents</span>
+      <span class="badge">12 Design Elements</span>
+    </div>
+    <div class="toc-grid">
+      <div class="toc-item"><div class="toc-num">01</div><div class="toc-text"><strong>Centered Login + Minimal Card</strong><span>Claude, ChatGPT · Principle 2</span></div></div>
+      <div class="toc-item"><div class="toc-num">02</div><div class="toc-text"><strong>Biometric Opt-in with Skip</strong><span>ChatGPT, Apple · Principle 8</span></div></div>
+      <div class="toc-item"><div class="toc-num">03</div><div class="toc-text"><strong>Collapsible Sidebar + Chat History</strong><span>Claude, ChatGPT · Principle 9</span></div></div>
+      <div class="toc-item"><div class="toc-num">04</div><div class="toc-text"><strong>Right Notification Panel + Urgency Badges</strong><span>Microsoft Copilot · Principle 13</span></div></div>
+      <div class="toc-item"><div class="toc-num">05</div><div class="toc-text"><strong>Multi-modal Composer ( + / Mic / Send )</strong><span>ChatGPT, Gemini · Principle 10</span></div></div>
+      <div class="toc-item"><div class="toc-num">06</div><div class="toc-text"><strong>Personalised Greeting + Context Badge</strong><span>ChatGPT, Amazon Rufus · Principle 6</span></div></div>
+      <div class="toc-item"><div class="toc-num">07</div><div class="toc-text"><strong>Quick Topic Chips → Sub-prompt Drawer</strong><span>ChatGPT, Rufus · Principles 2 & 3</span></div></div>
+      <div class="toc-item"><div class="toc-num">08</div><div class="toc-text"><strong>Thinking State + Transparent Reasoning</strong><span>Claude, Copilot · Principle 8</span></div></div>
+      <div class="toc-item"><div class="toc-num">09</div><div class="toc-text"><strong>Suggested Diagnoses Cards</strong><span>ChatGPT, Copilot · Principle 11</span></div></div>
+      <div class="toc-item"><div class="toc-num">10</div><div class="toc-text"><strong>User Menu: Theme + Sign Out</strong><span>Claude · Principles 8 & 12</span></div></div>
+      <div class="toc-item"><div class="toc-num">11</div><div class="toc-text"><strong>Dark Mode System</strong><span>Claude, ChatGPT · Principle 12</span></div></div>
+      <div class="toc-item"><div class="toc-num">12</div><div class="toc-text"><strong>Grid Background Texture</strong><span>Claude, Linear · Visual Identity</span></div></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 2 — Centered Login                              -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide" id="s2">
+    <div class="slide-header">
+      <span class="slide-title">01 — Centered Login + Minimal Card</span>
+      <span class="badge">Principle 2 · Progressive Disclosure</span>
+    </div>
+    <div class="cols">
+      <!-- OUR DESIGN -->
+      <div class="col">
+        <div class="col-label">Our Design — Blu</div>
+        <div class="screenshot-wrap">
+          <img src="screenshots/1.png" alt="Blu Login" class="top-center" />
+        </div>
+        <div class="img-caption">LoginEntry.tsx — Centered card, single email field, aspirational headline</div>
+      </div>
+      <!-- BENCHMARK -->
+      <div class="col">
+        <div class="col-label">Benchmark</div>
+        <div class="multi-bench">
+          <div class="bench-card bench-bg-claude">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-claude"></span>
+              <span class="platform-name claude">Claude.ai</span>
+            </div>
+            <div class="bench-card-body">
+              <div class="mockup-login" style="background:#f4f4f0;">
+                <div class="mockup-headline" style="font-family:Georgia,serif;">Claude</div>
+                <div class="mockup-sub">by Anthropic</div>
+                <div class="mockup-field">Email address</div>
+                <div class="mockup-btn claude" style="border-radius:8px;">Continue</div>
+              </div>
+            </div>
+          </div>
+          <div class="bench-card bench-bg-chatgpt">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-chatgpt"></span>
+              <span class="platform-name chatgpt">ChatGPT</span>
+            </div>
+            <div class="bench-card-body">
+              <div class="mockup-login">
+                <div style="font-size:22px;">⊙</div>
+                <div class="mockup-headline">Welcome back</div>
+                <div class="mockup-field">Email address</div>
+                <div class="mockup-btn" style="border-radius:8px;">Continue</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- PRINCIPLE -->
+      <div class="col principle-col">
+        <div class="col-label">Design Principle</div>
+        <div class="principle-number">02</div>
+        <div class="principle-title">Progressive Task Disclosure</div>
+        <p class="principle-body">
+          Both Claude and ChatGPT use a <strong>single centered card</strong> with one input field and one CTA. The background is neutral and distraction-free.<br><br>
+          This is L0 of the progressive disclosure model — <strong>no information is revealed until the user has committed to step one</strong>. Placing the form in a white floating card creates clear depth hierarchy against the muted grid background, guiding the eye directly to the action.<br><br>
+          The large serif headline "Work simpler, move faster" sets emotional framing before the utility starts — a pattern used by ChatGPT's "A new way to work" messaging.
+        </p>
+        <div class="tag-row">
+          <span class="tag tag-blue">L0 Interaction</span>
+          <span class="tag tag-purple">Cognitive Load Reduction</span>
+          <span class="tag tag-green">Conversion Best Practice</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 3 — Biometric                                   -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide" id="s3">
+    <div class="slide-header">
+      <span class="slide-title">02 — Biometric Opt-in with Skip</span>
+      <span class="badge">Principle 8 · Human Control</span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-label">Our Design — Blu</div>
+        <div class="screenshot-wrap">
+          <img src="screenshots/2.png" alt="Biometric Setup" class="top-center" />
+        </div>
+        <div class="img-caption">BiometricSetup.tsx — Fingerprint icon, primary CTA + ghost secondary "Skip for now"</div>
+      </div>
+      <div class="col">
+        <div class="col-label">Benchmark</div>
+        <div class="multi-bench">
+          <div class="bench-card bench-bg-chatgpt">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-chatgpt"></span>
+              <span class="platform-name chatgpt">ChatGPT — Onboarding</span>
+            </div>
+            <div class="bench-card-body flex-col" style="justify-content:center; align-items:center; gap:10px;">
+              <div style="font-size:32px; line-height:1;">🔐</div>
+              <div class="mockup-headline" style="color:#111; font-size:13px; text-align:center;">Enable face unlock?</div>
+              <div class="mockup-sub" style="font-size:10px;">Quick access with Face ID</div>
+              <div class="mockup-btn" style="font-size:10px; border-radius:8px; padding:7px 0; width:100%;">Enable</div>
+              <div style="font-size:10px; color:#888; text-align:center; cursor:pointer;">Not now</div>
+            </div>
+          </div>
+          <div class="bench-card bench-bg-copilot">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-copilot"></span>
+              <span class="platform-name copilot">Copilot — Consent Pattern</span>
+            </div>
+            <div class="bench-card-body flex-col" style="justify-content:center; gap:8px;">
+              <div class="mockup-label">Why this works</div>
+              <div style="font-size:10.5px; color:#aaa; line-height:1.6;">
+                Primary button = "Setup Now" (action, colored)<br>
+                Secondary = "Skip for now" (ghost, low weight)<br><br>
+                Visual hierarchy ensures the opt-in is preferred but the skip is always discoverable. This matches <strong style="color:#ccc;">Principle 8</strong> — users remain decision-makers; no action is forced.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col principle-col">
+        <div class="col-label">Design Principle</div>
+        <div class="principle-number">08</div>
+        <div class="principle-title">Human Control & Confirmation</div>
+        <p class="principle-body">
+          Security setup is high-stakes. Forcing biometrics would create friction and distrust. Offering <strong>"Skip for now"</strong> as an equal-access but visually de-prioritised option follows the consent model used by ChatGPT's feature onboarding flows.<br><br>
+          The <strong>fingerprint icon in a soft circle</strong> visually communicates what is being set up before the user reads a word — this reduces cognitive resistance to the permission request.<br><br>
+          The same layout card language as the login screen creates continuity across the onboarding journey, reinforcing the visual system identity.
+        </p>
+        <div class="tag-row">
+          <span class="tag tag-blue">Consent-first</span>
+          <span class="tag tag-purple">Visual Metaphor</span>
+          <span class="tag tag-orange">Onboarding Best Practice</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 4 — Collapsible Sidebar                        -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide" id="s4">
+    <div class="slide-header">
+      <span class="slide-title">03 — Collapsible Sidebar + Chat History</span>
+      <span class="badge">Principle 9 · Session Management</span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-label">Our Design — Blu (3 states)</div>
+        <div class="screenshot-wrap" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:transparent; border:none; flex:1;">
+          <div class="screenshot-wrap" style="flex:1; min-height:0;">
+            <img src="screenshots/3.png" alt="Sidebar expanded" />
+          </div>
+          <div class="screenshot-wrap" style="flex:1; min-height:0;">
+            <img src="screenshots/4.png" alt="Sidebar collapsed to rail" />
+          </div>
+        </div>
+        <div class="img-caption">Full sidebar → Icon rail → Fully hidden · 3 progressive states</div>
+      </div>
+      <div class="col">
+        <div class="col-label">Benchmark</div>
+        <div class="multi-bench">
+          <div class="bench-card bench-bg-claude">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-claude"></span>
+              <span class="platform-name claude">Claude.ai — Session List</span>
+            </div>
+            <div class="bench-card-body">
+              <div class="mockup-sidebar">
+                <div class="mockup-sidebar-item" style="background:#e8e8e8; font-weight:700; font-size:9.5px; color:#555;">+ New conversation</div>
+                <div class="mockup-sidebar-item active">Quarterly Review Analysis <span class="mockup-sidebar-time">now</span></div>
+                <div class="mockup-sidebar-item">Code debugging help <span class="mockup-sidebar-time">1h ago</span></div>
+                <div class="mockup-sidebar-item">Marketing copy draft <span class="mockup-sidebar-time">Yesterday</span></div>
+                <div class="mockup-sidebar-item">Customer email response <span class="mockup-sidebar-time">2d ago</span></div>
+                <div class="mockup-sidebar-item">Trip planning ideas <span class="mockup-sidebar-time">3d ago</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="bench-card bench-bg-chatgpt">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-chatgpt"></span>
+              <span class="platform-name chatgpt">ChatGPT — Collapsible Rail</span>
+            </div>
+            <div class="bench-card-body flex-col" style="align-items:flex-start; gap:6px;">
+              <div style="display:flex; gap:8px; align-items:center;">
+                <div style="width:28px; height:28px; border-radius:8px; background:#eee; display:flex; align-items:center; justify-content:center; font-size:14px;">✎</div>
+                <div style="font-size:10px; color:#555;">Collapses to icon-only rail on narrow screens</div>
+              </div>
+              <div style="font-size:10px; color:#aaa; line-height:1.6;">
+                ChatGPT sidebar collapses to a thin rail showing only icons, preserving navigation access without consuming content space — identical to our implementation.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col principle-col">
+        <div class="col-label">Design Principle</div>
+        <div class="principle-number">09</div>
+        <div class="principle-title">Session Management</div>
+        <p class="principle-body">
+          Claude and ChatGPT both keep the last 10+ sessions visible in a persistent left panel with <strong>relative timestamps</strong> (now, 45m ago, Yesterday) — the same pattern Blu uses.<br><br>
+          Relative time is faster to scan than absolute timestamps. <strong>"Just now"</strong> communicates recency without requiring the user to do math.<br><br>
+          Three sidebar states — full, icon rail, hidden — follow the <strong>Principle 14: Inline vs Expanded</strong> logic applied to the shell itself. Users get maximum content focus when needed, without permanently losing navigation.
+        </p>
+        <div class="tag-row">
+          <span class="tag tag-blue">Session Continuity</span>
+          <span class="tag tag-purple">Progressive Collapse</span>
+          <span class="tag tag-green">Relative Timestamps</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 5 — Notification Panel                          -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide" id="s5">
+    <div class="slide-header">
+      <span class="slide-title">04 — Right Notification Panel + Urgency Badges</span>
+      <span class="badge">Principle 13 · Critical Information Priority</span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-label">Our Design — Blu</div>
+        <div class="screenshot-wrap">
+          <img src="screenshots/3.png" alt="Notification panel" style="object-position: right top;" />
+        </div>
+        <div class="img-caption">Right panel: SLA Breach, Needs action, In Review, Decision due, Blocked, FYI — priority order</div>
+      </div>
+      <div class="col">
+        <div class="col-label">Benchmark</div>
+        <div class="multi-bench">
+          <div class="bench-card bench-bg-copilot">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-copilot"></span>
+              <span class="platform-name copilot">Microsoft Copilot / M365</span>
+            </div>
+            <div class="bench-card-body scroll flex-col">
+              <div class="mockup-notif">
+                <div class="mockup-notif-header">
+                  <span class="mockup-notif-title">⏱ Approval Required</span>
+                  <span class="mockup-badge urgent">1h left</span>
+                </div>
+                <div class="mockup-notif-body">PO #4281 awaiting your sign-off</div>
+                <div class="mockup-notif-time">Now</div>
+              </div>
+              <div class="mockup-notif">
+                <div class="mockup-notif-header">
+                  <span class="mockup-notif-title">📋 Document Action</span>
+                  <span class="mockup-badge action">Needs action</span>
+                </div>
+                <div class="mockup-notif-body">Contract addendum needs review</div>
+                <div class="mockup-notif-time">5m ago</div>
+              </div>
+              <div class="mockup-notif">
+                <div class="mockup-notif-header">
+                  <span class="mockup-notif-title">🔍 Ticket #4821</span>
+                  <span class="mockup-badge blocked">Blocked</span>
+                </div>
+                <div class="mockup-notif-body">Awaiting L2 approval</div>
+                <div class="mockup-notif-time">18m ago</div>
+              </div>
+              <div class="mockup-notif">
+                <div class="mockup-notif-header">
+                  <span class="mockup-notif-title">📢 Maintenance</span>
+                  <span class="mockup-badge review">FYI</span>
+                </div>
+                <div class="mockup-notif-body">Scheduled tonight 11 PM</div>
+                <div class="mockup-notif-time">1h ago</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col principle-col">
+        <div class="col-label">Design Principle</div>
+        <div class="principle-number">13</div>
+        <div class="principle-title">Critical Information Priority</div>
+        <p class="principle-body">
+          Microsoft 365 Copilot surfaces critical items in a persistent right panel — approvals, flagged documents, blocked tasks — so the user doesn't miss them while in a conversation.<br><br>
+          <strong>Urgency badges</strong> (SLA Breach → Blocked → Decision Due → Needs Action → In Review → FYI) create a <strong>visual severity hierarchy</strong>. Red for time-critical, orange for decision-needed, blue for informational — matching global notification semantics.<br><br>
+          <strong>Countdown timers</strong> ("1h 45m left") add temporal urgency without requiring the user to calculate deadlines. This is critical for enterprise users managing SLA-bound workflows.
+        </p>
+        <div class="tag-row">
+          <span class="tag tag-blue">Urgency Hierarchy</span>
+          <span class="tag tag-orange">SLA Awareness</span>
+          <span class="tag tag-pink">Proactive Surfacing</span>
+          <span class="tag tag-green">Status Semantics</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 6 — Multi-modal Composer                        -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide" id="s6">
+    <div class="slide-header">
+      <span class="slide-title">05 — Multi-modal Composer ( + / Mic / Send )</span>
+      <span class="badge">Principle 10 · Multi-modal Input</span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-label">Our Design — Blu</div>
+        <div class="screenshot-wrap" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:transparent; border:none;">
+          <div class="screenshot-wrap">
+            <img src="screenshots/5.png" alt="Composer default" />
+          </div>
+          <div class="screenshot-wrap">
+            <img src="screenshots/6.png" alt="Composer + menu open" />
+          </div>
+        </div>
+        <div class="img-caption">ChatComposer.tsx — Default state vs + menu expanded (Add file / Upload image)</div>
+      </div>
+      <div class="col">
+        <div class="col-label">Benchmark</div>
+        <div class="multi-bench">
+          <div class="bench-card bench-bg-chatgpt">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-chatgpt"></span>
+              <span class="platform-name chatgpt">ChatGPT — Composer</span>
+            </div>
+            <div class="bench-card-body flex-col" style="justify-content:flex-end; gap:8px;">
+              <div style="background:#f4f4f4; border-radius:14px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                <div style="font-size:10px; color:#333; display:flex; align-items:center; gap:6px;">
+                  <span style="font-size:16px; color:#555;">⊕</span>
+                  <span style="color:#aaa;">Message ChatGPT</span>
+                </div>
+                <div style="display:flex; gap:6px; align-items:center;">
+                  <span style="font-size:14px;">🎙</span>
+                  <div style="background:#10a37f; border-radius:8px; width:24px; height:24px; display:flex; align-items:center; justify-content:center; color:white; font-size:12px;">↑</div>
+                </div>
+              </div>
+              <div style="background:white; border-radius:10px; padding:8px 12px; font-size:10px; box-shadow:0 2px 8px rgba(0,0,0,.1);" class="flex-col">
+                <div style="display:flex; align-items:center; gap:6px; padding:4px 0;"><span>📎</span><span style="color:#333;">Attach files</span></div>
+                <div style="display:flex; align-items:center; gap:6px; padding:4px 0;"><span>🖼</span><span style="color:#333;">Upload image</span></div>
+                <div style="display:flex; align-items:center; gap:6px; padding:4px 0;"><span>🔍</span><span style="color:#333;">Search web</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="bench-card bench-bg-gemini">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-gemini"></span>
+              <span class="platform-name gemini">Gemini — Mic as Peer Input</span>
+            </div>
+            <div class="bench-card-body flex-col" style="gap:8px;">
+              <div style="font-size:10px; color:#aaa; line-height:1.65;">
+                Gemini positions the microphone icon at the same level as the text field — not hidden in a menu — making voice a <strong style="color:#ccc;">first-class input modality</strong>, not an afterthought. Blu does the same: mic is always visible in the composer bar.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col principle-col">
+        <div class="col-label">Design Principle</div>
+        <div class="principle-number">10</div>
+        <div class="principle-title">Multi-Modal Input</div>
+        <p class="principle-body">
+          ChatGPT's <strong>+ button expands to a contextual popover</strong> with file and image options — the same pattern Blu uses. This keeps the composer bar clean at rest while making attachments accessible in one tap.<br><br>
+          The <strong>microphone icon is always visible</strong> alongside the send button, following Gemini's approach of treating voice as a primary input — not buried in a menu or settings.<br><br>
+          The <strong>send button activates</strong> (fills with colour) only when text is present — providing feedback that the system is ready, a key affordance principle.
+        </p>
+        <div class="tag-row">
+          <span class="tag tag-blue">Voice First-class</span>
+          <span class="tag tag-purple">Progressive Disclosure</span>
+          <span class="tag tag-green">Affordance Feedback</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 7 — Greeting + Context Badge                    -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide" id="s7">
+    <div class="slide-header">
+      <span class="slide-title">06 — Personalised Greeting + Context Badge</span>
+      <span class="badge">Principle 6 · Context Preservation</span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-label">Our Design — Blu</div>
+        <div class="screenshot-wrap">
+          <img src="screenshots/8.png" alt="Greeting + DMS badge" class="top-center" />
+        </div>
+        <div class="img-caption">"Afternoon, Rahul" + "DMS" context pill + "Collection Manager, Pune" role line</div>
+      </div>
+      <div class="col">
+        <div class="col-label">Benchmark</div>
+        <div class="multi-bench">
+          <div class="bench-card bench-bg-chatgpt">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-chatgpt"></span>
+              <span class="platform-name chatgpt">ChatGPT — Personalised Start</span>
+            </div>
+            <div class="bench-card-body flex-col" style="align-items:center; justify-content:center; gap:8px; text-align:center;">
+              <div style="font-size:22px; font-weight:800; color:#111; font-family:Georgia,serif;">Good morning,<br>Neha.</div>
+              <div style="font-size:10px; color:#888;">How can I help you today?</div>
+              <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-top:4px;">
+                <div class="mockup-chip">✍ Write</div>
+                <div class="mockup-chip">📊 Analyse</div>
+                <div class="mockup-chip">💡 Brainstorm</div>
+              </div>
+            </div>
+          </div>
+          <div class="bench-card bench-bg-rufus">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-rufus"></span>
+              <span class="platform-name rufus">Amazon Rufus — Domain Badge</span>
+            </div>
+            <div class="bench-card-body flex-col" style="gap:8px;">
+              <div style="display:inline-flex; align-items:center; gap:5px; background:#fff3e0; border-radius:20px; padding:3px 10px; align-self:flex-start;">
+                <div style="width:6px;height:6px;border-radius:50%;background:#ff9900;"></div>
+                <span style="font-size:9.5px; font-weight:700; color:#b26a00;">Electronics</span>
+              </div>
+              <div style="font-size:10px; color:#aaa; line-height:1.65;">
+                Rufus shows a <strong style="color:#ccc;">category/domain context badge</strong> above the conversation, so the user always knows which product domain the AI is operating in. Blu's "DMS" pill mirrors this exactly.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col principle-col">
+        <div class="col-label">Design Principle</div>
+        <div class="principle-number">06</div>
+        <div class="principle-title">Context Preservation</div>
+        <p class="principle-body">
+          ChatGPT's personalised greeting ("Good morning, [name]") reduces cold-start anxiety and makes the interface feel aware. <strong>Time-of-day salutation</strong> ("Afternoon, Rahul") adds temporal context without requiring the user to provide it.<br><br>
+          The <strong>"DMS" context badge</strong> above the greeting, borrowed from Amazon Rufus's domain-awareness pattern, tells the user exactly which system context the AI is operating in — critical in enterprise where the same user may switch between HR, Finance, and Sales modules.<br><br>
+          <strong>Role + location</strong> ("Collection Manager, Pune") confirms the right identity is active — especially important with biometric login where multiple users may share a device.
+        </p>
+        <div class="tag-row">
+          <span class="tag tag-blue">Personalisation</span>
+          <span class="tag tag-orange">Domain Anchoring</span>
+          <span class="tag tag-purple">Identity Confirmation</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 8 — Quick Topic Chips                           -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide" id="s8">
+    <div class="slide-header">
+      <span class="slide-title">07 — Quick Topic Chips → Sub-prompt Drawer</span>
+      <span class="badge">Principles 2 & 3 · Progressive Disclosure + Supporting Prompts</span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-label">Our Design — Blu</div>
+        <div class="screenshot-wrap" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:transparent; border:none;">
+          <div class="screenshot-wrap">
+            <img src="screenshots/8.png" alt="Chips closed" class="top-center" />
+          </div>
+          <div class="screenshot-wrap">
+            <img src="screenshots/9.png" alt="Chips with drawer" class="top-center" />
+          </div>
+        </div>
+        <div class="img-caption">Collections / Dealers / Payments / Escalations chips → tap → sub-prompt drawer</div>
+      </div>
+      <div class="col">
+        <div class="col-label">Benchmark</div>
+        <div class="multi-bench">
+          <div class="bench-card bench-bg-chatgpt">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-chatgpt"></span>
+              <span class="platform-name chatgpt">ChatGPT — Suggested Prompts</span>
+            </div>
+            <div class="bench-card-body flex-col" style="gap:6px;">
+              <div class="flex-row">
+                <div class="mockup-chip">✍ Write essay</div>
+                <div class="mockup-chip">📊 Analyse data</div>
+              </div>
+              <div class="flex-row">
+                <div class="mockup-chip">💡 Brainstorm</div>
+                <div class="mockup-chip">🔍 Research</div>
+              </div>
+              <div style="font-size:10px; color:#aaa; line-height:1.6; margin-top:4px;">
+                ChatGPT shows 4 chips at L0. Tapping one either populates the input or opens a sub-list — identical to Blu's Collections → sub-prompts pattern.
+              </div>
+            </div>
+          </div>
+          <div class="bench-card bench-bg-rufus">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-rufus"></span>
+              <span class="platform-name rufus">Amazon Rufus — Guided Sub-intents</span>
+            </div>
+            <div class="bench-card-body flex-col" style="gap:6px;">
+              <div style="background:#fff8f0; border-radius:8px; padding:8px 10px;">
+                <div style="font-size:10px; font-weight:700; color:#333; margin-bottom:6px;">📦 Collections</div>
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                  <div style="font-size:9.5px; color:#333; padding:3px 0; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">What's in my bucket today? <span style="color:#ff9900;">›</span></div>
+                  <div style="font-size:9.5px; color:#333; padding:3px 0; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">Follow-ups due today <span style="color:#ff9900;">›</span></div>
+                  <div style="font-size:9.5px; color:#333; padding:3px 0; display:flex; justify-content:space-between;">Daily collection summary <span style="color:#ff9900;">›</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col principle-col">
+        <div class="col-label">Design Principle</div>
+        <div class="principle-number">02 + 03</div>
+        <div class="principle-title">Progressive Disclosure + Supporting Prompts</div>
+        <p class="principle-body">
+          At <strong>L0</strong> (no input yet), showing four topic chips gives the user intent categories without overwhelming them with options. This mirrors ChatGPT's suggested prompts and Rufus's category navigation.<br><br>
+          Tapping a chip triggers <strong>L1</strong> — the sub-prompt drawer opens with 5 contextual options specific to that domain. This follows Principle 3's rule: <strong>max 3–5 prompts per turn, contextual to current state</strong>.<br><br>
+          The drawer pattern (not a new page) keeps the user in context and allows one-tap query submission — reducing the input barrier for enterprise users who may not know what to ask.
+        </p>
+        <div class="tag-row">
+          <span class="tag tag-blue">L0 → L1 Flow</span>
+          <span class="tag tag-orange">Intent Seeding</span>
+          <span class="tag tag-purple">Guided Discovery</span>
+          <span class="tag tag-green">Max 5 Sub-prompts</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 9 — Thinking State                              -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide" id="s9">
+    <div class="slide-header">
+      <span class="slide-title">08 — Thinking State + Transparent Reasoning Checklist</span>
+      <span class="badge">Principle 8 · Human Control</span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-label">Our Design — Blu</div>
+        <div class="screenshot-wrap">
+          <img src="screenshots/10.png" alt="Thinking state" class="top-center" />
+        </div>
+        <div class="img-caption">"I'm analyzing the situation…" + checklist: Analyzing intent → Checking context → Verifying permissions</div>
+      </div>
+      <div class="col">
+        <div class="col-label">Benchmark</div>
+        <div class="multi-bench">
+          <div class="bench-card bench-bg-claude">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-claude"></span>
+              <span class="platform-name claude">Claude — Extended Thinking</span>
+            </div>
+            <div class="bench-card-body flex-col" style="gap:8px;">
+              <div class="mockup-thinking">
+                <div class="dots"><span></span><span></span><span></span></div>
+                Thinking through the problem...
+              </div>
+              <div style="background:#f9f4f0; border-radius:8px; padding:8px 10px; font-size:10px; color:#555; line-height:1.6;">
+                Claude's "Extended Thinking" mode shows a visible reasoning trace — a collapsible block that shows the model's chain of thought before the final answer. Users can expand or collapse it.
+              </div>
+            </div>
+          </div>
+          <div class="bench-card bench-bg-copilot">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-copilot"></span>
+              <span class="platform-name copilot">Copilot — Agentic Step Tracker</span>
+            </div>
+            <div class="bench-card-body flex-col" style="gap:8px;">
+              <div style="background:white; border-radius:8px; padding:8px 10px; border:1px solid #eee;">
+                <div style="font-size:9.5px; color:#666; margin-bottom:6px;">Understanding the issue</div>
+                <div class="mockup-step"><div class="step-check"><svg viewBox="0 0 8 8" fill="none"><polyline points="1.5,4 3,5.5 6.5,2.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg></div> Analyzing email thread</div>
+                <div class="mockup-step"><div class="step-check"><svg viewBox="0 0 8 8" fill="none"><polyline points="1.5,4 3,5.5 6.5,2.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg></div> Identifying action items</div>
+                <div class="mockup-step"><div class="step-check"><svg viewBox="0 0 8 8" fill="none"><polyline points="1.5,4 3,5.5 6.5,2.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg></div> Drafting response</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col principle-col">
+        <div class="col-label">Design Principle</div>
+        <div class="principle-number">08</div>
+        <div class="principle-title">Human Control & Transparency</div>
+        <p class="principle-body">
+          Claude's Extended Thinking and Copilot's agentic step tracker both show users <strong>what the AI is doing before delivering the answer</strong>. This builds trust, especially for enterprise users who are accountable for AI-assisted decisions.<br><br>
+          Blu's checklist — <strong>Analyzing intent → Checking context → Verifying permissions</strong> — is directly derived from Copilot's step tracker pattern. Green checkmarks provide progressive confirmation that each step completed without error.<br><br>
+          The "I'm analyzing the situation…" floating bubble mirrors Claude's thinking indicator — a gentle signal that the AI is working, preventing the user from re-submitting the query.
+        </p>
+        <div class="tag-row">
+          <span class="tag tag-blue">Reasoning Transparency</span>
+          <span class="tag tag-purple">Trust Building</span>
+          <span class="tag tag-green">Processing Feedback</span>
+          <span class="tag tag-orange">Agentic Pattern</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 10 — Suggested Diagnoses                        -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide" id="s10">
+    <div class="slide-header">
+      <span class="slide-title">09 — Suggested Diagnoses Cards</span>
+      <span class="badge">Principle 11 · Response Formatting</span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-label">Our Design — Blu</div>
+        <div class="screenshot-wrap">
+          <img src="screenshots/10.png" alt="Suggested diagnoses" style="object-position: bottom center;" />
+        </div>
+        <div class="img-caption">Suggested Diagnoses: radio cards with title + subtitle. Check today's transfer allowance / View dealer account details</div>
+      </div>
+      <div class="col">
+        <div class="col-label">Benchmark</div>
+        <div class="multi-bench">
+          <div class="bench-card bench-bg-chatgpt">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-chatgpt"></span>
+              <span class="platform-name chatgpt">ChatGPT — Structured Tool Results</span>
+            </div>
+            <div class="bench-card-body flex-col" style="gap:6px;">
+              <div class="mockup-chat-bubble bot" style="max-width:100%; margin:0;">This looks like a payment limit issue.</div>
+              <div style="font-size:9.5px; color:#aaa; margin: 2px 0;">Suggested next steps:</div>
+              <div class="mockup-diag"><div class="mockup-diag-title">🔍 Check daily limits</div><div class="mockup-diag-sub">View current transfer allowance</div></div>
+              <div class="mockup-diag"><div class="mockup-diag-title">📋 View account details</div><div class="mockup-diag-sub">Recent activity and status</div></div>
+              <div class="mockup-diag"><div class="mockup-diag-title">💰 Review transaction</div><div class="mockup-diag-sub">Analyze specific payment</div></div>
+            </div>
+          </div>
+          <div class="bench-card bench-bg-copilot">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-copilot"></span>
+              <span class="platform-name copilot">Copilot — Action Cards</span>
+            </div>
+            <div class="bench-card-body flex-col" style="gap:6px;">
+              <div style="font-size:10px; color:#aaa; line-height:1.65;">
+                Copilot structures AI responses as <strong style="color:#ccc;">selectable action cards</strong> — not plain text — so users can act on suggestions with a single tap. Each card has a title (the action) and subtitle (the context), matching Blu's diagnosis card pattern exactly.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col principle-col">
+        <div class="col-label">Design Principle</div>
+        <div class="principle-number">11</div>
+        <div class="principle-title">Response Formatting for Scannability</div>
+        <p class="principle-body">
+          Plain-text AI responses force users to read everything. <strong>Structured cards</strong> let users scan in under 2 seconds and select the most relevant next action — critical for enterprise users who are time-constrained.<br><br>
+          Each diagnosis card follows Principle 11's format rule: <strong>actions → CTA buttons</strong>. The radio input signals selectability. The title-subtitle hierarchy within the card (action name + what it does) mirrors ChatGPT's tool result cards.<br><br>
+          The label <strong>"Suggested Diagnoses"</strong> sets expectation that these are the AI's interpretations, not commands — preserving the user's decision-making authority (Principle 8).
+        </p>
+        <div class="tag-row">
+          <span class="tag tag-blue">Scannable Structure</span>
+          <span class="tag tag-purple">Action Cards</span>
+          <span class="tag tag-green">2-level Hierarchy</span>
+          <span class="tag tag-orange">Decision Support</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 11 — User Menu                                  -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide" id="s11">
+    <div class="slide-header">
+      <span class="slide-title">10 — User Menu: Theme Toggle + Sign Out</span>
+      <span class="badge">Principles 8 & 12 · Control + Accessibility</span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-label">Our Design — Blu</div>
+        <div class="screenshot-wrap">
+          <img src="screenshots/7.png" alt="User menu" class="center" />
+        </div>
+        <div class="img-caption">Floating card anchored to avatar · Light mode / Dark mode · Sign out in red (destructive action)</div>
+      </div>
+      <div class="col">
+        <div class="col-label">Benchmark</div>
+        <div class="multi-bench">
+          <div class="bench-card bench-bg-claude">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-claude"></span>
+              <span class="platform-name claude">Claude — Account Panel</span>
+            </div>
+            <div class="bench-card-body flex-col" style="gap:6px;">
+              <div style="background:white; border-radius:10px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,.1);">
+                <div style="padding:8px 12px; font-size:10px; display:flex; align-items:center; gap:6px; color:#333; border-bottom:1px solid #eee;">☀️ Light mode</div>
+                <div style="padding:8px 12px; font-size:10px; display:flex; align-items:center; gap:6px; color:#333; border-bottom:1px solid #eee;">🌙 Dark mode</div>
+                <div style="padding:8px 12px; font-size:10px; display:flex; align-items:center; gap:6px; color:#dc2626; border-bottom:1px solid #eee;">→ Sign out</div>
+              </div>
+              <div style="font-size:10px; color:#aaa; line-height:1.6;">
+                Claude uses an identical floating card anchored to the avatar at the bottom-left. Sign out is styled in red — the universal destructive action colour.
+              </div>
+            </div>
+          </div>
+          <div class="bench-card bench-bg-chatgpt">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-chatgpt"></span>
+              <span class="platform-name chatgpt">ChatGPT — Destructive Action Colour</span>
+            </div>
+            <div class="bench-card-body flex-col" style="gap:8px;">
+              <div style="font-size:10px; color:#aaa; line-height:1.65;">
+                ChatGPT also uses <strong style="color:#ccc;">red text</strong> for "Log out" and account deletion in its menu, following universal convention that red = irreversible / destructive. This prevents accidental sign-out while keeping the option discoverable.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col principle-col">
+        <div class="col-label">Design Principle</div>
+        <div class="principle-number">08 + 12</div>
+        <div class="principle-title">Human Control + Accessibility</div>
+        <p class="principle-body">
+          The floating account card follows Claude's exact pattern — anchored to the user avatar at bottom-left, surfacing only on demand, keeping the main interface clean.<br><br>
+          <strong>Light / Dark mode as explicit choices</strong> (not just system-follow) is a Claude best practice. Enterprise users may use the app in contexts where their OS theme differs from their preference for the tool.<br><br>
+          <strong>Sign out in red</strong> follows the global UX convention for destructive actions. The visual separation (a horizontal divider before "Sign out") adds an extra layer of protection against accidental taps — the same pattern used by Claude and ChatGPT.
+        </p>
+        <div class="tag-row">
+          <span class="tag tag-blue">Explicit Theme Control</span>
+          <span class="tag tag-pink">Destructive Action Colour</span>
+          <span class="tag tag-purple">Anchored Panel</span>
+          <span class="tag tag-green">Accessibility</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 12 — Dark Mode                                  -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide" id="s12">
+    <div class="slide-header">
+      <span class="slide-title">11 — Full Dark Mode System</span>
+      <span class="badge">Principle 12 · Accessibility</span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-label">Our Design — Blu (Light vs Dark)</div>
+        <div class="screenshot-wrap" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:transparent; border:none;">
+          <div class="screenshot-wrap">
+            <img src="screenshots/3.png" alt="Light mode" />
+          </div>
+          <div class="screenshot-wrap">
+            <img src="screenshots/11.png" alt="Dark mode" />
+          </div>
+        </div>
+        <div class="img-caption">CSS variable token system — same layout, all colours flip via .dark class on the root element</div>
+      </div>
+      <div class="col">
+        <div class="col-label">Benchmark</div>
+        <div class="multi-bench">
+          <div class="bench-card bench-bg-claude">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-claude"></span>
+              <span class="platform-name claude">Claude — Dark Mode Token System</span>
+            </div>
+            <div class="bench-card-body flex-col" style="gap:8px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                <div style="background:#f4f4f0; border-radius:8px; padding:8px; display:flex; flex-direction:column; gap:4px;">
+                  <div style="font-size:8px; color:#888; font-weight:700; letter-spacing:.1em;">LIGHT</div>
+                  <div style="font-size:9px; color:#111;">--surface: #ffffff</div>
+                  <div style="font-size:9px; color:#111;">--text: #111827</div>
+                  <div class="mockup-chat-bubble user" style="font-size:9px; margin:0; align-self:flex-end;">Query</div>
+                </div>
+                <div style="background:#1e1e24; border-radius:8px; padding:8px; display:flex; flex-direction:column; gap:4px;">
+                  <div style="font-size:8px; color:#666; font-weight:700; letter-spacing:.1em;">DARK</div>
+                  <div style="font-size:9px; color:#eee;">--surface: #242429</div>
+                  <div style="font-size:9px; color:#eee;">--text: #f5f5f7</div>
+                  <div class="mockup-chat-bubble user claude" style="font-size:9px; margin:0; align-self:flex-end;">Query</div>
+                </div>
+              </div>
+              <div style="font-size:10px; color:#aaa; line-height:1.6;">
+                Claude's entire theme is built on CSS tokens. Flipping the root class changes all tokens in one shot — no component-level dark mode overrides needed.
+              </div>
+            </div>
+          </div>
+          <div class="bench-card bench-bg-chatgpt">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-chatgpt"></span>
+              <span class="platform-name chatgpt">ChatGPT — Semantic Colour Preservation</span>
+            </div>
+            <div class="bench-card-body flex-col" style="gap:6px;">
+              <div style="font-size:10px; color:#aaa; line-height:1.65;">
+                Status badge colours (red = urgent, orange = warning, blue = info) survive the theme switch in both ChatGPT and Blu. <strong style="color:#ccc;">Semantic meaning is never lost</strong> when switching modes — a key accessibility requirement.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col principle-col">
+        <div class="col-label">Design Principle</div>
+        <div class="principle-number">12</div>
+        <div class="principle-title">Vernacular & Accessibility</div>
+        <p class="principle-body">
+          Dark mode is not just an aesthetic choice — it reduces eye strain for enterprise users working extended shifts or in low-light environments (field collection agents, night-shift operations).<br><br>
+          Blu's implementation uses <strong>CSS design tokens</strong> (–-surface-1, –-text-primary, –-border) in <code style="color:#9ca3af;">theme.css</code>. The <strong>.dark class</strong> on the root element flips all tokens simultaneously — the same architectural approach Claude uses. This means no component ever needs individual dark mode overrides.<br><br>
+          Critically, <strong>urgency badge colours remain semantically correct</strong> in dark mode — red is still danger, orange is still warning — preserving the notification panel's information hierarchy across themes.
+        </p>
+        <div class="tag-row">
+          <span class="tag tag-blue">CSS Token Architecture</span>
+          <span class="tag tag-purple">Semantic Colour Stability</span>
+          <span class="tag tag-green">WCAG Compliance</span>
+          <span class="tag tag-orange">Eye Strain Reduction</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 13 — Grid Background                            -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide" id="s13">
+    <div class="slide-header">
+      <span class="slide-title">12 — Subtle Grid Background Texture</span>
+      <span class="badge">Visual Identity · Brand Differentiation</span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-label">Our Design — Blu</div>
+        <div class="screenshot-wrap">
+          <img src="screenshots/5.png" alt="Grid background" class="center" />
+        </div>
+        <div class="img-caption">Subtle grid pattern on --background · low contrast, high-frequency texture for depth without noise</div>
+      </div>
+      <div class="col">
+        <div class="col-label">Benchmark</div>
+        <div class="multi-bench">
+          <div class="bench-card bench-bg-claude">
+            <div class="bench-card-header">
+              <span class="platform-dot dot-claude"></span>
+              <span class="platform-name claude">Claude.ai — Dot Grid Background</span>
+            </div>
+            <div class="bench-card-body" style="align-items:center; justify-content:center;">
+              <div style="
+                width:100%; height:90px;
+                background-color: #f5f4ef;
+                background-image: radial-gradient(circle, #c8c5b8 1px, transparent 1px);
+                background-size: 20px 20px;
+                border-radius:8px;
+                display:flex; align-items:center; justify-content:center;
+              ">
+                <div style="background:white; border-radius:10px; padding:8px 16px; font-size:10px; color:#333; box-shadow:0 2px 8px rgba(0,0,0,.08);">Card floats above the dot grid</div>
+              </div>
+            </div>
+          </div>
+          <div class="bench-card" style="background:rgba(100,100,120,.07);">
+            <div class="bench-card-header">
+              <span class="platform-dot" style="background:#6366f1;"></span>
+              <span class="platform-name" style="color:#818cf8;">Linear / Notion — Grid Patterns</span>
+            </div>
+            <div class="bench-card-body" style="align-items:center; justify-content:center;">
+              <div style="
+                width:100%; height:90px;
+                background-color: #fafafa;
+                background-image: linear-gradient(rgba(0,0,0,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px);
+                background-size: 24px 24px;
+                border-radius:8px;
+                display:flex; align-items:center; justify-content:center;
+              ">
+                <div style="background:white; border-radius:8px; padding:6px 14px; font-size:9.5px; color:#333; box-shadow:0 1px 6px rgba(0,0,0,.08);">Line grid — same visual role</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col principle-col">
+        <div class="col-label">Design Principle</div>
+        <div class="principle-number">✦</div>
+        <div class="principle-title">Visual Depth Without Noise</div>
+        <p class="principle-body">
+          Claude uses a subtle <strong>dot grid</strong> on its background. Linear, Notion, and many enterprise SaaS tools use a <strong>line grid</strong>. Both serve the same purpose: adding a low-contrast texture that gives depth without visual noise.<br><br>
+          Blu's fine grid background creates a <strong>spatial canvas</strong> that makes floating cards (login form, chat composer, notification panel) appear elevated — reinforcing the layered surface hierarchy.<br><br>
+          At the correct contrast ratio, the grid is <strong>below the threshold of conscious attention</strong> — it's perceived as quality and depth, not as a distraction. This is a well-established technique in premium SaaS interfaces.
+        </p>
+        <div class="tag-row">
+          <span class="tag tag-blue">Surface Hierarchy</span>
+          <span class="tag tag-purple">Perceived Quality</span>
+          <span class="tag tag-green">Sub-threshold Texture</span>
+          <span class="tag tag-orange">Brand Differentiation</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 14 — End Slide                                  -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="slide" id="s14">
+    <div class="title-slide" style="height:100%; gap:16px;">
+      <div class="eyebrow">Summary</div>
+      <h1 style="font-size:38px;">Every pixel has a precedent.</h1>
+      <p class="subtitle" style="max-width:640px;">
+        Each design decision in Blu traces directly to a pattern established by Claude, ChatGPT, Microsoft Copilot, Gemini, or Amazon Rufus — and is grounded in the 14 principles defined in the platform benchmarks document.
+      </p>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-top:16px; width:100%; max-width:820px;">
+        <div style="background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center;">
+          <div style="font-size:32px; font-weight:800; color:#7aa4ff; margin-bottom:4px;">12</div>
+          <div style="font-size:11px; color:var(--muted);">Design Elements<br>Benchmarked</div>
+        </div>
+        <div style="background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center;">
+          <div style="font-size:32px; font-weight:800; color:#b89fff; margin-bottom:4px;">6</div>
+          <div style="font-size:11px; color:var(--muted);">Platforms<br>Referenced</div>
+        </div>
+        <div style="background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center;">
+          <div style="font-size:32px; font-weight:800; color:#6ee7a0; margin-bottom:4px;">10</div>
+          <div style="font-size:11px; color:var(--muted);">Principles<br>Applied</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /deck -->
+
+<!-- ── Navigation ── -->
+<div id="nav">
+  <button id="prevBtn" onclick="navigate(-1)" disabled>← Prev</button>
+  <span id="slide-counter">1 / 15</span>
+  <button id="nextBtn" onclick="navigate(1)">Next →</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  let current = 0;
+
+  function showSlide(n) {
+    slides[current].classList.remove('active');
+    slides[current].style.display = 'none';
+    current = Math.max(0, Math.min(n, slides.length - 1));
+    slides[current].style.display = 'flex';
+    // Force reflow to trigger animation
+    slides[current].offsetHeight;
+    slides[current].classList.add('active');
+    document.getElementById('slide-counter').textContent = `${current + 1} / ${slides.length}`;
+    document.getElementById('prevBtn').disabled = current === 0;
+    document.getElementById('nextBtn').disabled = current === slides.length - 1;
+  }
+
+  function navigate(dir) { showSlide(current + dir); }
+
+  // Keyboard nav
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); navigate(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); navigate(-1); }
+  });
+
+  // Init — show first slide properly
+  slides.forEach((s, i) => { if (i !== 0) s.style.display = 'none'; });
+  document.getElementById('slide-counter').textContent = `1 / ${slides.length}`;
+</script>
+</body>
+</html>
