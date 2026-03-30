@@ -12,6 +12,18 @@ import { ChatComposer } from './ChatComposer';
 import { NextActionsCard, type NextActionItem } from './NextActionsCard';
 import { RoleBadge } from './RoleBadge';
 
+const NAME_CHANGE_PROMPT = 'I want to change my customers name';
+const normalizeIntent = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const isNameChangeIntent = (query: string) => {
+  const normalized = normalizeIntent(query);
+  return (
+    normalized === normalizeIntent(NAME_CHANGE_PROMPT) ||
+    normalized.includes('name change') ||
+    (normalized.includes('change') && normalized.includes('customer') && normalized.includes('name')) ||
+    (normalized.includes('update') && normalized.includes('customer') && normalized.includes('name'))
+  );
+};
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface B2BContext {
@@ -26,7 +38,13 @@ type ChatStage =
   | 'home' | 'ask_lan' | 'lan_processing'
   | 'name_found' | 'doc_capturing' | 'ocr_processing'
   | 'name_confirm' | 'success' | 'generic'
-  | 'leave_loading' | 'leave_summary' | 'leave_declaration' | 'leave_decl_success';
+  | 'leave_loading' | 'leave_summary' | 'leave_declaration' | 'leave_decl_success'
+  | 'do_intent' | 'do_upload' | 'do_mail_processing' | 'do_governance' | 'do_cancelled'
+  | 'claim_bill_upload' | 'claim_bill_fetching'
+  | 'claim_proof_upload' | 'claim_proof_fetching'
+  | 'claim_bill_type' | 'claim_review' | 'claim_submitting' | 'claim_submitted';
+
+const CLAIM_TRIGGER = 'I want to raise a meal claim';
 
 // ── Suggestive action categories ───────────────────────────────────────────
 
@@ -37,7 +55,7 @@ const B2B_CATEGORIES = [
     Icon: Users,
     prompts: [
       { label: 'Manage my leaves', query: 'Show my leave balance' },
-      { label: 'My claims', query: 'What are all the things I can make a claim for' },
+      { label: 'My claims', query: CLAIM_TRIGGER },
       { label: 'Policy related information', query: 'I have a policy related question, could you help me out' },
       { label: 'Check my incentives', query: 'Show me a breakdown of my earned sales incentives for quater 2' },
       { label: 'Check hierarchy', query: 'Show me the complete reporting structure for my department' },
@@ -48,8 +66,8 @@ const B2B_CATEGORIES = [
     label: 'Sales helpline',
     Icon: Headphones,
     prompts: [
-      { label: 'Change customer name', query: "I need to update a customer's name in the system. What documents are required?" },
-      { label: 'DO (Delivery Order) governance', query: 'Can you explain the DO governance process and show me the current status of pending delivery orders under my territory?' },
+      { label: 'Change customer name', query: NAME_CHANGE_PROMPT },
+      { label: 'DO (Delivery Order) governance', query: 'Can you explain the DO governance process?' },
       { label: 'Clarification', query: 'I need clarification on a policy or process. Can you help me understand the correct guidelines?' },
       { label: 'System or Technical issue', query: "I'm facing a system or technical issue. Can you help me log this and connect me with the right support team?" },
       { label: 'Other process related', query: 'I have a process-related query that needs attention. Can you help me find the right information or escalate it to the correct team?' },
@@ -84,7 +102,10 @@ const B2B_CATEGORIES = [
 type MsgType =
   | 'text' | 'error' | 'progress' | 'doc_select' | 'capture'
   | 'name_match' | 'success' | 'upload_info'
-  | 'leave_table' | 'leave_actions' | 'declaration_card' | 'leave_decl_success';
+  | 'leave_table' | 'leave_actions' | 'declaration_card' | 'leave_decl_success'
+  | 'do_quick_reply' | 'do_upload_card' | 'do_mail_steps' | 'do_governance_card' | 'do_cancelled_card'
+  | 'claim_upload_card' | 'claim_fetch_loader' | 'claim_proof_card' | 'claim_proof_loader'
+  | 'claim_bill_type_chips' | 'claim_review_card' | 'claim_submit_loader' | 'claim_success_card';
 
 interface Msg {
   id: string;
@@ -103,14 +124,31 @@ interface Props {
 const CURRENT_NAME = 'Rohit P';
 const OCR_NAME = 'Rohit Patil';
 const MATCH_PCT = 87;
+const VALID_NAME_CHANGE_LAN = '1033456780';
 
-const NAME_CHANGE_TRIGGER = "I need to update a customer's name in the system. What documents are required?";
+const NAME_CHANGE_TRIGGER = NAME_CHANGE_PROMPT;
 const LEAVE_BALANCE_TRIGGER = 'Show my leave balance';
+const DO_GOVERNANCE_TRIGGER = 'Can you explain the DO governance process?';
+
+const CLAIM_BILL = {
+  vendor:   "JOEY'S PIZZA",
+  billNo:   'JPZ-2026-4892',
+  date:     '28 Feb 2026',
+  amount:   '₹847.00',
+  gst:      '₹152.46',
+  total:    '₹999.46',
+  category: 'Meal / Food',
+  ref:      'CLM-2026-00847',
+};
+
+const DO_LAN    = 'XX123456';
+const DO_DEALER = 'Ajay Verma';
+const DO_TRIP   = 'Pune → Nashik';
 
 const LEAVE_DATA = [
-  { label: 'Leaves',                colorVar: 'var(--status-success)', alphaBg: 'rgba(22,163,74,0.07)'  },
-  { label: 'WFH Emergency',         colorVar: 'var(--status-warning)', alphaBg: 'rgba(217,119,6,0.07)' },
-  { label: 'Official Travel Dates', colorVar: 'var(--status-info)',    alphaBg: 'rgba(37,99,235,0.07)'  },
+  { label: 'Leaves',                colorVar: 'var(--status-success)', alphaBg: 'rgba(22,163,74,0.07)',  ytd: 5, mtd: 2 },
+  { label: 'WFH Emergency',         colorVar: 'var(--status-warning)', alphaBg: 'rgba(217,119,6,0.07)', ytd: 3, mtd: 1 },
+  { label: 'Official Travel Dates', colorVar: 'var(--status-info)',    alphaBg: 'rgba(37,99,235,0.07)',  ytd: 8, mtd: 3 },
 ];
 
 const DECL_MONTH = 'February 2026';
@@ -124,6 +162,10 @@ export function B2BChat({ onContextUpdate }: Props) {
   const [procSteps, setProcSteps]   = useState<Step[]>([]);
   const [ocrSteps, setOcrSteps]     = useState<Step[]>([]);
   const [leaveSteps, setLeaveSteps] = useState<Step[]>([]);
+  const [doSteps, setDoSteps]           = useState<Step[]>([]);
+  const [claimFetchSteps, setClaimFetchSteps]   = useState<Step[]>([]);
+  const [claimProofSteps, setClaimProofSteps]   = useState<Step[]>([]);
+  const [claimSubmitSteps, setClaimSubmitSteps] = useState<Step[]>([]);
   const [ctx, setCtx] = useState<B2BContext>({ status: 'waiting' });
   const endRef     = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -158,15 +200,19 @@ export function B2BChat({ onContextUpdate }: Props) {
     }]);
   };
 
-  // ── Name-change journey ────────────────────────────────────────────────
-
-  const startJourney = () => {
-    push('user', 'text', 'Update customer name');
+  const promptForLoanAccount = () => {
     updateCtx({ status: 'active' });
     setTimeout(() => {
-      push('assistant', 'text', "Please enter the customer's 15-digit Loan Account Number (LAN) to continue.");
+      push('assistant', 'text', 'Please enter the 10-digit Loan Account Number:');
       setStage('ask_lan');
     }, 300);
+  };
+
+  // ── Name-change journey ────────────────────────────────────────────────
+
+  const startJourney = (intent = NAME_CHANGE_PROMPT) => {
+    push('user', 'text', intent);
+    promptForLoanAccount();
   };
 
   const handleLanSend = (val: string) => {
@@ -174,11 +220,17 @@ export function B2BChat({ onContextUpdate }: Props) {
     push('user', 'text', val);
 
     if (/[^0-9]/.test(val)) {
-      setTimeout(() => push('assistant', 'error', 'Enter digits only. Please provide the 15-digit LAN again.'), 250);
+      setTimeout(() => push('assistant', 'error', 'Enter digits only. Please provide the 10-digit Loan Account Number again.'), 250);
       return;
     }
-    if (val.length !== 15) {
-      setTimeout(() => push('assistant', 'error', `LAN must be exactly 15 digits — you entered ${val.length}. Please try again.`), 250);
+    if (val.length !== 10) {
+      setTimeout(() => push('assistant', 'error', `Loan Account Number must be exactly 10 digits. You entered ${val.length}. Please try again.`), 250);
+      return;
+    }
+    if (val !== VALID_NAME_CHANGE_LAN) {
+      setTimeout(() => {
+        push('assistant', 'error', 'We could not find a matching customer record for this 10-digit Loan Account Number. Please recheck and try again.');
+      }, 250);
       return;
     }
 
@@ -186,9 +238,9 @@ export function B2BChat({ onContextUpdate }: Props) {
     setStage('lan_processing');
 
     const init: Step[] = [
-      { id: '1', label: 'Validating LAN', status: 'running' },
+      { id: '1', label: 'Validating Loan Account Number', status: 'running' },
       { id: '2', label: 'Checking customer records', status: 'pending' },
-      { id: '3', label: 'Preparing update flow', status: 'pending' },
+      { id: '3', label: 'Preparing name change workflow', status: 'pending' },
     ];
     setProcSteps(init);
     push('assistant', 'progress', '', { steps: 'proc' });
@@ -206,7 +258,7 @@ export function B2BChat({ onContextUpdate }: Props) {
     setTimeout(() => {
       push('assistant', 'text', `${CURRENT_NAME} is the customer's current name in the system.`);
       push('assistant', 'upload_info');
-      push('assistant', 'capture', '', { doc: 'PAN card or Aadhaar card' });
+      push('assistant', 'capture', '', { doc: 'Supporting document (PDF)' });
       setStage('doc_capturing');
     }, 2900);
   };
@@ -215,11 +267,26 @@ export function B2BChat({ onContextUpdate }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
+    const isClaimStage = stage === 'claim_bill_upload' || stage === 'claim_proof_upload';
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const isImage = file.type.startsWith('image/');
+    if (!isPdf && !(isClaimStage && isImage)) {
+      push('assistant', 'error', 'Only PDF files are supported for this request. Please upload a PDF document.');
+      return;
+    }
     if (file.size > 5 * 1024 * 1024) {
       push('assistant', 'error', 'File exceeds the 5 MB limit. Please upload a smaller file.');
       return;
     }
-    handleCapture();
+    if (stage === 'do_upload') {
+      handleDOUpload();
+    } else if (stage === 'claim_bill_upload') {
+      handleBillUpload();
+    } else if (stage === 'claim_proof_upload') {
+      handleProofUpload();
+    } else {
+      handleCapture();
+    }
   };
 
   const handleCapture = () => {
@@ -262,7 +329,7 @@ export function B2BChat({ onContextUpdate }: Props) {
     } else {
       setTimeout(() => {
         push('assistant', 'text', 'Please upload another document for verification.');
-        push('assistant', 'capture', '', { doc: 'PAN card or Aadhaar card' });
+        push('assistant', 'capture', '', { doc: 'Supporting document (PDF)' });
         setStage('doc_capturing');
         updateCtx({ pendingName: undefined });
       }, 350);
@@ -276,8 +343,8 @@ export function B2BChat({ onContextUpdate }: Props) {
     setStage('leave_loading');
 
     const init: Step[] = [
-      { id: '1', label: 'Connecting to Chroma HRMS', status: 'running' },
-      { id: '2', label: 'Fetching leave records', status: 'pending' },
+      { id: '1', label: 'Fetching leave records', status: 'running' },
+      { id: '2', label: 'Preparing leave summary', status: 'pending' },
       { id: '3', label: 'Preparing summary', status: 'pending' },
     ];
     setLeaveSteps(init);
@@ -334,6 +401,163 @@ export function B2BChat({ onContextUpdate }: Props) {
     }
   };
 
+  // ── DO cancellation journey ────────────────────────────────────────────
+
+  const startDOJourney = () => {
+    push('assistant', 'text', 'A Delivery Order (DO) is issued once a loan is sanctioned and disbursed to the dealer. It authorises the dealer to release the asset to the customer. DO governance ensures every order follows compliance and policy rules before release.');
+    setTimeout(() => {
+      push('assistant', 'text', 'What would you like to do?');
+      push('assistant', 'do_quick_reply');
+      setStage('do_intent');
+    }, 400);
+  };
+
+  const handleDOIntent = (choice: string) => {
+    if (stage !== 'do_intent') return;
+    push('user', 'text', choice);
+    if (choice === 'Raise a DO Cancellation request') {
+      setTimeout(() => {
+        push('assistant', 'text', 'Please attach the mail/letter from the dealer requesting DO cancellation via the + button.');
+        push('assistant', 'do_upload_card');
+        setStage('do_upload');
+      }, 350);
+    } else {
+      setTimeout(() => {
+        push('assistant', 'text', "I'll pull up the DO status for your territory. This feature is coming soon.");
+        setStage('generic');
+      }, 350);
+    }
+  };
+
+  const handleDOUpload = () => {
+    push('user', 'text', 'Document uploaded');
+    setStage('do_mail_processing');
+
+    const init: Step[] = [
+      { id: '1', label: 'Dealer Mail Verified', status: 'running' },
+      { id: '2', label: 'Governance Check', status: 'pending' },
+      { id: '3', label: 'QC Check', status: 'pending' },
+    ];
+    setDoSteps(init);
+    push('assistant', 'do_mail_steps');
+
+    setTimeout(() => setDoSteps(p => p.map((s, i) => ({
+      ...s, status: (i === 0 ? 'completed' : i === 1 ? 'running' : 'pending') as Step['status'],
+    }))), 900);
+    setTimeout(() => setDoSteps(p => p.map((s, i) => ({
+      ...s, status: (i <= 1 ? 'completed' : 'running') as Step['status'],
+    }))), 1800);
+    setTimeout(() => {
+      setDoSteps(p => p.map(s => ({ ...s, status: 'completed' as Step['status'] })));
+    }, 2700);
+    setTimeout(() => {
+      push('assistant', 'text', 'Dealer mail received and verified.');
+      push('assistant', 'do_governance_card');
+      setStage('do_governance');
+    }, 3200);
+  };
+
+  const handleDOConfirm = (confirm: boolean) => {
+    if (stage !== 'do_governance') return;
+    if (confirm) {
+      push('user', 'text', 'Confirm Cancellation');
+      setTimeout(() => {
+        push('assistant', 'do_cancelled_card');
+        setStage('do_cancelled');
+        updateCtx({ status: 'completed' });
+      }, 350);
+    } else {
+      push('user', 'text', 'Cancel');
+      setTimeout(() => {
+        push('assistant', 'text', 'DO cancellation request has been discarded. No changes have been made.');
+        setStage('generic');
+      }, 350);
+    }
+  };
+
+  // ── Meal claim journey ─────────────────────────────────────────────────
+
+  const startClaimJourney = () => {
+    push('assistant', 'text', "Sure! Please upload your meal bill to get started.");
+    push('assistant', 'claim_upload_card');
+    setStage('claim_bill_upload');
+  };
+
+  const handleBillUpload = () => {
+    push('user', 'text', 'Bill uploaded');
+    setStage('claim_bill_fetching');
+    const init: Step[] = [
+      { id: '1', label: 'Reading your bill',    status: 'running' },
+      { id: '2', label: 'Extracting details',   status: 'pending' },
+    ];
+    setClaimFetchSteps(init);
+    push('assistant', 'claim_fetch_loader');
+    setTimeout(() => setClaimFetchSteps(p => p.map((s, i) => ({
+      ...s, status: (i === 0 ? 'completed' : 'running') as Step['status'],
+    }))), 900);
+    setTimeout(() => setClaimFetchSteps(p => p.map(s => ({ ...s, status: 'completed' as Step['status'] }))), 1800);
+    setTimeout(() => {
+      push('assistant', 'text', `Got it. Please upload the payment proof for ${CLAIM_BILL.vendor}.`);
+      push('assistant', 'claim_proof_card');
+      setStage('claim_proof_upload');
+    }, 2300);
+  };
+
+  const handleProofUpload = () => {
+    push('user', 'text', 'Payment proof uploaded');
+    setStage('claim_proof_fetching');
+    const init: Step[] = [
+      { id: '1', label: 'Verifying payment proof',    status: 'running' },
+      { id: '2', label: 'Cross-checking amount',      status: 'pending' },
+    ];
+    setClaimProofSteps(init);
+    push('assistant', 'claim_proof_loader');
+    setTimeout(() => setClaimProofSteps(p => p.map((s, i) => ({
+      ...s, status: (i === 0 ? 'completed' : 'running') as Step['status'],
+    }))), 900);
+    setTimeout(() => setClaimProofSteps(p => p.map(s => ({ ...s, status: 'completed' as Step['status'] }))), 1800);
+    setTimeout(() => {
+      push('assistant', 'text', 'What kind of bill is this?');
+      push('assistant', 'claim_bill_type_chips');
+      setStage('claim_bill_type');
+    }, 2300);
+  };
+
+  const handleBillType = (type: 'Personal bill' | 'Shared bill') => {
+    if (stage !== 'claim_bill_type') return;
+    push('user', 'text', type);
+    setTimeout(() => {
+      push('assistant', 'text', "Here are the details I've gathered from your bill:");
+      push('assistant', 'claim_review_card');
+      setStage('claim_review');
+    }, 350);
+  };
+
+  const handleClaimConfirm = (confirm: boolean) => {
+    if (stage !== 'claim_review') return;
+    if (!confirm) {
+      push('user', 'text', 'Decline');
+      setTimeout(() => {
+        push('assistant', 'text', 'Claim request cancelled. No submission has been made.');
+        setStage('generic');
+      }, 350);
+      return;
+    }
+    push('user', 'text', 'Confirm & Submit');
+    setStage('claim_submitting');
+    const init: Step[] = [
+      { id: '1', label: 'Submitting your claim', status: 'running' },
+    ];
+    setClaimSubmitSteps(init);
+    push('assistant', 'claim_submit_loader');
+    setTimeout(() => setClaimSubmitSteps(p => p.map(s => ({ ...s, status: 'completed' as Step['status'] }))), 1000);
+    setTimeout(() => {
+      push('assistant', 'claim_success_card');
+      setStage('claim_submitted');
+      updateCtx({ status: 'completed' });
+    }, 1600);
+  };
+
   // ── Reset ──────────────────────────────────────────────────────────────
 
   const handleStartAnotherRequest = () => {
@@ -342,6 +566,10 @@ export function B2BChat({ onContextUpdate }: Props) {
     setProcSteps([]);
     setOcrSteps([]);
     setLeaveSteps([]);
+    setDoSteps([]);
+    setClaimFetchSteps([]);
+    setClaimProofSteps([]);
+    setClaimSubmitSteps([]);
     setCtx(resetCtx);
     onContextUpdate(resetCtx);
     setStage('home');
@@ -355,35 +583,74 @@ export function B2BChat({ onContextUpdate }: Props) {
     if (selected) push('user', 'text', selected.label);
   };
 
-  const handleHomePromptSend = (query: string) => {
-    setActiveCategory(null);
-    setPrefillText('');
-    push('user', 'text', query);
-    updateCtx({ status: 'active' });
-
-    if (query === NAME_CHANGE_TRIGGER) {
-      setTimeout(() => {
-        push('assistant', 'text', "Please enter the customer's 15-digit Loan Account Number (LAN) to continue.");
-        setStage('ask_lan');
-      }, 300);
+  const handleIntentSend = (query: string) => {
+    if (isNameChangeIntent(query)) {
+      startJourney(query);
       return;
     }
-    if (query === LEAVE_BALANCE_TRIGGER) {
+
+    if (normalizeIntent(query) === normalizeIntent(LEAVE_BALANCE_TRIGGER)) {
+      push('user', 'text', query);
+      updateCtx({ status: 'active' });
       setTimeout(() => startLeaveJourney(), 300);
       return;
     }
+
+    if (normalizeIntent(query) === normalizeIntent(DO_GOVERNANCE_TRIGGER)) {
+      push('user', 'text', query);
+      updateCtx({ status: 'active' });
+      setTimeout(() => startDOJourney(), 300);
+      return;
+    }
+
+    if (normalizeIntent(query) === normalizeIntent(CLAIM_TRIGGER)) {
+      push('user', 'text', query);
+      updateCtx({ status: 'active' });
+      setTimeout(() => startClaimJourney(), 300);
+      return;
+    }
+
+    push('user', 'text', query);
+    updateCtx({ status: 'active' });
     setTimeout(() => {
       push('assistant', 'text', "I'll look into that for you. Give me a moment.");
       setStage('generic');
     }, 400);
   };
 
+  const handleHomePromptSend = (query: string) => {
+    setActiveCategory(null);
+    setPrefillText('');
+    handleIntentSend(query);
+  };
+
+  const handleChatTraySend = (query: string) => {
+    if (stage === 'ask_lan') {
+      handleLanSend(query);
+      return;
+    }
+
+    if (stage === 'generic' || stage === 'success' || stage === 'leave_decl_success' || stage === 'claim_submitted') {
+      handleIntentSend(query);
+    }
+  };
+
   // ── Derived render helpers ─────────────────────────────────────────────
 
-  const lastCaptureId    = msgs.filter(m => m.type === 'capture').at(-1)?.id;
-  const lastNameMatchId  = msgs.filter(m => m.type === 'name_match').at(-1)?.id;
+  const lastCaptureId      = msgs.filter(m => m.type === 'capture').at(-1)?.id;
+  const lastNameMatchId    = msgs.filter(m => m.type === 'name_match').at(-1)?.id;
   const lastLeaveActionsId = msgs.filter(m => m.type === 'leave_actions').at(-1)?.id;
-  const lastDeclCardId   = msgs.filter(m => m.type === 'declaration_card').at(-1)?.id;
+  const lastDeclCardId     = msgs.filter(m => m.type === 'declaration_card').at(-1)?.id;
+  const lastDoQuickReplyId    = msgs.filter(m => m.type === 'do_quick_reply').at(-1)?.id;
+  const lastDoUploadId        = msgs.filter(m => m.type === 'do_upload_card').at(-1)?.id;
+  const lastDoGovCardId       = msgs.filter(m => m.type === 'do_governance_card').at(-1)?.id;
+  const lastClaimUploadId     = msgs.filter(m => m.type === 'claim_upload_card').at(-1)?.id;
+  const lastClaimFetchId      = msgs.filter(m => m.type === 'claim_fetch_loader').at(-1)?.id;
+  const lastClaimProofId      = msgs.filter(m => m.type === 'claim_proof_card').at(-1)?.id;
+  const lastClaimProofLoadId  = msgs.filter(m => m.type === 'claim_proof_loader').at(-1)?.id;
+  const lastClaimBillTypeId   = msgs.filter(m => m.type === 'claim_bill_type_chips').at(-1)?.id;
+  const lastClaimReviewId     = msgs.filter(m => m.type === 'claim_review_card').at(-1)?.id;
+  const lastClaimSubmitLoadId = msgs.filter(m => m.type === 'claim_submit_loader').at(-1)?.id;
 
   // ── Home screen ────────────────────────────────────────────────────────
 
@@ -393,21 +660,17 @@ export function B2BChat({ onContextUpdate }: Props) {
     return (
       <div className="flex flex-col items-center justify-center h-full px-4 py-8 gap-5 overflow-y-auto">
         <div className="flex flex-col items-center gap-2 text-center">
-          <RoleBadge label="B2B Urban" tone="purple" />
+          <p style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}>Hi Rahul</p>
           <h1
-            className="text-3xl sm:text-4xl md:text-5xl leading-tight"
-            style={{ color: 'var(--text-primary)', fontFamily: "'Lora', serif", fontWeight: 400, letterSpacing: '-0.01em' }}
+            style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}
           >
-            Afternoon, Rahul
+            Where should we start?
           </h1>
-          <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-            Sales Manager, Nagpur
-          </p>
         </div>
 
         <div className="w-full max-w-xl">
           <ChatComposer
-            placeholder="Chat with your Bajaj AI assistant... (e.g., 'What is my leave balance?')"
+            placeholder="Ask Bajaj AI about a process or request"
             prefillValue={prefillText}
             onSendMessage={handleHomePromptSend}
           />
@@ -481,6 +744,15 @@ export function B2BChat({ onContextUpdate }: Props) {
                 }}
                 onClick={() => {
                   setActiveCategory(null);
+                  if (
+                    isNameChangeIntent(prompt.query) ||
+                    normalizeIntent(prompt.query) === normalizeIntent(LEAVE_BALANCE_TRIGGER) ||
+                    normalizeIntent(prompt.query) === normalizeIntent(DO_GOVERNANCE_TRIGGER) ||
+                    normalizeIntent(prompt.query) === normalizeIntent(CLAIM_TRIGGER)
+                  ) {
+                    handleHomePromptSend(prompt.query);
+                    return;
+                  }
                   setPrefillText(prompt.query);
                 }}
               >
@@ -501,7 +773,7 @@ export function B2BChat({ onContextUpdate }: Props) {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,.pdf"
+        accept=".pdf,application/pdf,image/*"
         className="hidden"
         onChange={handleFileChange}
       />
@@ -552,9 +824,9 @@ export function B2BChat({ onContextUpdate }: Props) {
                   className="flex w-full justify-start mb-4">
                   <div className="max-w-[85%] sm:max-w-[70%] rounded-2xl rounded-bl-none px-5 py-3 shadow-sm text-sm"
                     style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}>
-                    <p className="mb-2">To verify the updated name, please upload one of the following documents:</p>
+                    <p className="mb-2">Please upload a supporting PDF document using one of the accepted proofs below:</p>
                     <ul className="space-y-1 pl-1">
-                      {['PAN card', 'Aadhaar card'].map(doc => (
+                      {['Updated Aadhaar', 'PAN', 'Gazette notification'].map(doc => (
                         <li key={doc} className="flex items-center gap-2">
                           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: 'var(--text-secondary)' }} />
                           {doc}
@@ -592,7 +864,7 @@ export function B2BChat({ onContextUpdate }: Props) {
                         opacity: isLive ? 1 : 0.6,
                       }}>
                       <Camera size={16} />
-                      {isLive ? 'Capture Document' : 'Captured'}
+                      {isLive ? 'Upload PDF' : 'Uploaded'}
                     </button>
 
                     <button
@@ -606,13 +878,13 @@ export function B2BChat({ onContextUpdate }: Props) {
                         opacity: isLive ? 1 : 0.6,
                       }}>
                       <Upload size={16} />
-                      {isLive ? 'Click to upload document' : 'Document uploaded'}
+                      {isLive ? 'Click to upload PDF' : 'PDF uploaded'}
                     </button>
 
                     {isLive && (
                       <div className="flex items-center justify-between mt-3 px-1">
                         <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                          Ensure the document is clearly visible and all text is legible
+                          Upload a clear PDF copy with all text visible and legible
                         </p>
                         <span className="text-xs font-medium ml-3 shrink-0 px-2 py-0.5 rounded-md"
                           style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
@@ -788,8 +1060,8 @@ export function B2BChat({ onContextUpdate }: Props) {
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: row.colorVar }} />
                           <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{row.label}</span>
                         </div>
-                        <span className="text-xs font-medium text-center" style={{ color: 'var(--text-primary)' }}>0</span>
-                        <span className="text-xs font-medium text-right" style={{ color: 'var(--text-primary)' }}>0</span>
+                        <span className="text-xs font-medium text-center" style={{ color: 'var(--text-primary)' }}>{row.ytd}</span>
+                        <span className="text-xs font-medium text-right" style={{ color: 'var(--text-primary)' }}>{row.mtd}</span>
                       </motion.div>
                     ))}
                   </div>
@@ -856,7 +1128,7 @@ export function B2BChat({ onContextUpdate }: Props) {
                     {/* Declaration body */}
                     <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-primary)' }}>
                       I hereby declare that I have submitted all my leaves and marked my official travel
-                      dates for <span className="font-medium">{DECL_MONTH}</span> on CHROMA™. I confirm
+                      dates for <span className="font-medium">{DECL_MONTH}</span>. I confirm
                       I have not missed marking any leaves taken for the calendar year from January 2026.
                       I understand I will be solely responsible for any missed days, and liable for action
                       as per Bajaj Finance Limited's Code of Conduct.
@@ -957,6 +1229,476 @@ export function B2BChat({ onContextUpdate }: Props) {
               );
             }
 
+            // ── DO quick reply chips ──────────────────────────────────
+            if (m.type === 'do_quick_reply') {
+              const isLive = stage === 'do_intent' && m.id === lastDoQuickReplyId;
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, ease: 'easeOut', delay: 0.06 }}
+                  className="flex flex-wrap gap-2 mb-4">
+                  {['Check DO Status', 'Raise a DO Cancellation request'].map(choice => (
+                    <button
+                      key={choice}
+                      onClick={() => isLive && handleDOIntent(choice)}
+                      disabled={!isLive}
+                      className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:opacity-80 active:scale-[0.97]"
+                      style={{
+                        backgroundColor: 'var(--surface-1)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-subtle)',
+                        opacity: isLive ? 1 : 0.5,
+                        cursor: isLive ? 'pointer' : 'default',
+                      }}>
+                      {choice}
+                    </button>
+                  ))}
+                </motion.div>
+              );
+            }
+
+            // ── DO upload card ────────────────────────────────────────
+            if (m.type === 'do_upload_card') {
+              const isLive = stage === 'do_upload' && m.id === lastDoUploadId;
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  className="w-full mb-4">
+                  <div className="rounded-2xl p-5"
+                    style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <FileText size={16} style={{ color: 'var(--brand-blue)' }} />
+                      <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                        Dealer cancellation letter
+                      </span>
+                    </div>
+                    <button
+                      onClick={isLive ? () => fileInputRef.current?.click() : undefined}
+                      disabled={!isLive}
+                      className="sm:hidden w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all"
+                      style={{
+                        backgroundColor: isLive ? 'var(--brand-blue)' : 'var(--surface-2)',
+                        color: isLive ? '#fff' : 'var(--text-secondary)',
+                        opacity: isLive ? 1 : 0.6,
+                      }}>
+                      <Camera size={16} />
+                      {isLive ? 'Attach Document' : 'Attached'}
+                    </button>
+                    <button
+                      onClick={isLive ? () => fileInputRef.current?.click() : undefined}
+                      disabled={!isLive}
+                      className="hidden sm:flex w-full items-center justify-center gap-2 py-6 rounded-xl text-sm font-medium transition-all border-2 border-dashed"
+                      style={{
+                        borderColor: isLive ? 'var(--brand-blue)' : 'var(--border-subtle)',
+                        color: isLive ? 'var(--brand-blue)' : 'var(--text-secondary)',
+                        backgroundColor: isLive ? 'rgba(37,99,235,0.04)' : 'var(--surface-2)',
+                        opacity: isLive ? 1 : 0.6,
+                      }}>
+                      <Upload size={16} />
+                      {isLive ? 'Click to attach dealer letter' : 'Document attached'}
+                    </button>
+                    {isLive && (
+                      <div className="flex items-center justify-between mt-3 px-1">
+                        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                          Accepted formats: PDF, JPG, PNG
+                        </p>
+                        <span className="text-xs font-medium ml-3 shrink-0 px-2 py-0.5 rounded-md"
+                          style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                          Max 5 MB
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // ── DO mail processing steps ──────────────────────────────
+            if (m.type === 'do_mail_steps') {
+              return (
+                <div key={m.id} className="w-full mb-2">
+                  <ProgressCard title="Verifying dealer mail" steps={doSteps} />
+                </div>
+              );
+            }
+
+            // ── DO governance card ────────────────────────────────────
+            if (m.type === 'do_governance_card') {
+              const isLive = stage === 'do_governance' && m.id === lastDoGovCardId;
+              const timelineNodes = [
+                { label: 'Dealer Mail Verified', sub: 'dealer_cancellation_letter.pdf' },
+                { label: 'Governance', sub: 'Passed' },
+                { label: 'QC Check', sub: 'Passed' },
+                { label: 'DO Cancelled', sub: 'Complete · Stakeholders notified' },
+              ];
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="w-full mb-4">
+                  <div className="rounded-2xl p-5"
+                    style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: 'rgba(37,99,235,0.1)' }}>
+                        <Store size={15} style={{ color: 'var(--brand-blue)' }} />
+                      </div>
+                      <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        DO Cancellation Summary
+                      </span>
+                    </div>
+
+                    <div className="rounded-xl p-4 mb-5 space-y-2" style={{ backgroundColor: 'var(--surface-2)' }}>
+                      {[
+                        { label: 'LAN',    value: DO_LAN,    mono: true },
+                        { label: 'Dealer', value: DO_DEALER, mono: false },
+                        { label: 'Trip',   value: DO_TRIP,   mono: false },
+                        { label: 'Reason', value: 'Dealer cancellation request', mono: false },
+                      ].map(row => (
+                        <div key={row.label} className="flex justify-between items-center text-xs">
+                          <span style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
+                          <span className={row.mono ? 'font-mono' : ''} style={{ color: 'var(--text-primary)' }}>{row.value}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mb-5">
+                      {timelineNodes.map((node, i) => (
+                        <motion.div
+                          key={node.label}
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.22, delay: 0.1 + i * 0.1 }}
+                          className="flex items-start gap-3"
+                        >
+                          <div className="flex flex-col items-center">
+                            <div className="w-2.5 h-2.5 rounded-full shrink-0 mt-1"
+                              style={{ backgroundColor: 'var(--status-success)' }} />
+                            {i < timelineNodes.length - 1 && (
+                              <div className="w-px min-h-[24px] flex-1"
+                                style={{ backgroundColor: 'rgba(22,163,74,0.3)' }} />
+                            )}
+                          </div>
+                          <div className="pb-4">
+                            <div className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{node.label}</div>
+                            <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>{node.sub}</div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    {isLive && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.18, delay: 0.5 }}
+                        className="flex gap-3">
+                        <button
+                          onClick={() => handleDOConfirm(true)}
+                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.97]"
+                          style={{ backgroundColor: 'var(--brand-blue)' }}>
+                          <CheckCircle2 size={14} />
+                          Confirm Cancellation
+                        </button>
+                        <button
+                          onClick={() => handleDOConfirm(false)}
+                          className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80 active:scale-[0.97]"
+                          style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}>
+                          Cancel
+                        </button>
+                      </motion.div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // ── DO cancelled success ──────────────────────────────────
+            if (m.type === 'do_cancelled_card') {
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.25 }}
+                  className="w-full mb-4">
+                  <div className="rounded-2xl p-5"
+                    style={{ backgroundColor: 'var(--surface-1)', border: '1px solid rgba(22,163,74,0.3)' }}>
+
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: 'rgba(22,163,74,0.12)' }}>
+                        <CheckCircle2 size={20} style={{ color: 'var(--status-success)' }} />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold" style={{ color: 'var(--status-success)' }}>
+                          DO Cancelled Successfully
+                        </div>
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                          LAN: {DO_LAN}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl p-4 mb-4 space-y-2" style={{ backgroundColor: 'var(--surface-2)' }}>
+                      {[
+                        { label: 'Reference ID',  value: 'DOC-2026-04821',  mono: true },
+                        { label: 'Dealer',         value: DO_DEALER,         mono: false },
+                        { label: 'Cancelled on',   value: 'Today, 3:42 PM',  mono: false },
+                        { label: 'Stakeholders',   value: 'Notified',        mono: false },
+                      ].map(row => (
+                        <div key={row.label} className="flex justify-between items-center text-xs">
+                          <span style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
+                          <span className={row.mono ? 'font-mono' : ''} style={{ color: 'var(--text-primary)' }}>
+                            {row.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={handleStartAnotherRequest}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80 active:scale-[0.97]"
+                      style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}>
+                      <RefreshCw size={14} style={{ color: 'var(--text-secondary)' }} />
+                      Start new chat
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // ── claim bill upload card ────────────────────────────────
+            if (m.type === 'claim_upload_card') {
+              const isLive = stage === 'claim_bill_upload' && m.id === lastClaimUploadId;
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="w-full mb-4">
+                  <div className="rounded-2xl p-5"
+                    style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Upload size={15} style={{ color: 'var(--brand-blue)' }} />
+                      <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Upload Meal Bill</span>
+                    </div>
+                    <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
+                      Accepted formats: PDF, JPG, PNG · Max file size: <strong>5 MB</strong>
+                    </p>
+                    <button
+                      onClick={isLive ? () => fileInputRef.current?.click() : undefined}
+                      disabled={!isLive}
+                      className="w-full flex flex-col items-center justify-center gap-2 py-7 rounded-xl border-2 border-dashed transition-all"
+                      style={{
+                        borderColor: isLive ? 'var(--brand-blue)' : 'var(--border)',
+                        backgroundColor: isLive ? 'rgba(37,99,235,0.04)' : 'var(--surface-2)',
+                        cursor: isLive ? 'pointer' : 'default',
+                        opacity: isLive ? 1 : 0.5,
+                      }}>
+                      <Upload size={22} style={{ color: isLive ? 'var(--brand-blue)' : 'var(--text-secondary)' }} />
+                      <span className="text-sm font-medium" style={{ color: isLive ? 'var(--brand-blue)' : 'var(--text-secondary)' }}>
+                        Tap to upload your bill
+                      </span>
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // ── claim bill fetch loader ───────────────────────────────
+            if (m.type === 'claim_fetch_loader') {
+              const steps = m.id === lastClaimFetchId ? claimFetchSteps : claimFetchSteps.map(s => ({ ...s, status: 'completed' as Step['status'] }));
+              return (
+                <div key={m.id} className="w-full mb-2">
+                  <ProgressCard title="Analysing your bill" steps={steps} />
+                </div>
+              );
+            }
+
+            // ── claim payment proof card ──────────────────────────────
+            if (m.type === 'claim_proof_card') {
+              const isLive = stage === 'claim_proof_upload' && m.id === lastClaimProofId;
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="w-full mb-4">
+                  <div className="rounded-2xl p-5"
+                    style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <FileText size={15} style={{ color: 'var(--brand-blue)' }} />
+                      <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        Payment Proof — {CLAIM_BILL.vendor}
+                      </span>
+                    </div>
+                    <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
+                      UPI screenshot, bank statement or card receipt · Accepted: PDF, JPG, PNG · Max <strong>5 MB</strong>
+                    </p>
+                    <button
+                      onClick={isLive ? () => fileInputRef.current?.click() : undefined}
+                      disabled={!isLive}
+                      className="w-full flex flex-col items-center justify-center gap-2 py-7 rounded-xl border-2 border-dashed transition-all"
+                      style={{
+                        borderColor: isLive ? 'var(--brand-blue)' : 'var(--border)',
+                        backgroundColor: isLive ? 'rgba(37,99,235,0.04)' : 'var(--surface-2)',
+                        cursor: isLive ? 'pointer' : 'default',
+                        opacity: isLive ? 1 : 0.5,
+                      }}>
+                      <Upload size={22} style={{ color: isLive ? 'var(--brand-blue)' : 'var(--text-secondary)' }} />
+                      <span className="text-sm font-medium" style={{ color: isLive ? 'var(--brand-blue)' : 'var(--text-secondary)' }}>
+                        Tap to upload payment proof
+                      </span>
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // ── claim proof loader ────────────────────────────────────
+            if (m.type === 'claim_proof_loader') {
+              const steps = m.id === lastClaimProofLoadId ? claimProofSteps : claimProofSteps.map(s => ({ ...s, status: 'completed' as Step['status'] }));
+              return (
+                <div key={m.id} className="w-full mb-2">
+                  <ProgressCard title="Verifying payment proof" steps={steps} />
+                </div>
+              );
+            }
+
+            // ── claim bill type chips ─────────────────────────────────
+            if (m.type === 'claim_bill_type_chips') {
+              const isLive = stage === 'claim_bill_type' && m.id === lastClaimBillTypeId;
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex gap-2 mb-4">
+                  {(['Personal bill', 'Shared bill'] as const).map(opt => (
+                    <button key={opt}
+                      onClick={() => isLive && handleBillType(opt)}
+                      disabled={!isLive}
+                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all hover:opacity-80 active:scale-[0.97]"
+                      style={{
+                        backgroundColor: 'var(--surface-1)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-subtle)',
+                        opacity: isLive ? 1 : 0.45,
+                        cursor: isLive ? 'pointer' : 'default',
+                      }}>
+                      {opt}
+                    </button>
+                  ))}
+                </motion.div>
+              );
+            }
+
+            // ── claim review card ─────────────────────────────────────
+            if (m.type === 'claim_review_card') {
+              const isLive = stage === 'claim_review' && m.id === lastClaimReviewId;
+              const rows = [
+                { label: 'Vendor',    value: CLAIM_BILL.vendor   },
+                { label: 'Bill No',   value: CLAIM_BILL.billNo   },
+                { label: 'Date',      value: CLAIM_BILL.date     },
+                { label: 'Category',  value: CLAIM_BILL.category },
+                { label: 'Amount',    value: CLAIM_BILL.amount   },
+                { label: 'GST (18%)', value: CLAIM_BILL.gst      },
+                { label: 'Total',     value: CLAIM_BILL.total,   bold: true },
+              ];
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="w-full mb-4">
+                  <div className="rounded-2xl overflow-hidden"
+                    style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+                    <div className="px-5 py-3.5"
+                      style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-2)' }}>
+                      <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Bill Details</span>
+                    </div>
+                    {rows.map((row, i) => (
+                      <motion.div key={row.label}
+                        initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.18, delay: 0.05 + i * 0.06 }}
+                        className="flex items-center justify-between px-5 py-3"
+                        style={{ borderBottom: i < rows.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+                        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
+                        <span
+                          className="text-xs tabular-nums"
+                          style={{ color: 'var(--text-primary)', fontWeight: row.bold ? 700 : 500 }}>
+                          {row.value}
+                        </span>
+                      </motion.div>
+                    ))}
+                    <div className="flex gap-2 px-5 py-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                      <button
+                        onClick={() => isLive && handleClaimConfirm(true)}
+                        disabled={!isLive}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
+                        style={{
+                          backgroundColor: isLive ? 'var(--brand-blue)' : 'var(--surface-2)',
+                          color: isLive ? '#fff' : 'var(--text-secondary)',
+                          cursor: isLive ? 'pointer' : 'default',
+                        }}>
+                        Confirm &amp; Submit
+                      </button>
+                      <button
+                        onClick={() => isLive && handleClaimConfirm(false)}
+                        disabled={!isLive}
+                        className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80"
+                        style={{
+                          backgroundColor: 'var(--surface-2)',
+                          color: 'var(--text-secondary)',
+                          border: '1px solid var(--border-subtle)',
+                          cursor: isLive ? 'pointer' : 'default',
+                          opacity: isLive ? 1 : 0.45,
+                        }}>
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // ── claim submit loader ───────────────────────────────────
+            if (m.type === 'claim_submit_loader') {
+              const steps = m.id === lastClaimSubmitLoadId ? claimSubmitSteps : claimSubmitSteps.map(s => ({ ...s, status: 'completed' as Step['status'] }));
+              return (
+                <div key={m.id} className="w-full mb-2">
+                  <ProgressCard title="Submitting claim" steps={steps} />
+                </div>
+              );
+            }
+
+            // ── claim success card ────────────────────────────────────
+            if (m.type === 'claim_success_card') {
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, scale: 0.97, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  className="w-full mb-4">
+                  <div className="rounded-2xl p-6 text-center"
+                    style={{ backgroundColor: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.2)' }}>
+                    <div className="flex justify-center mb-3">
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: 'rgba(22,163,74,0.12)' }}>
+                        <CheckCircle2 size={26} style={{ color: '#16a34a' }} />
+                      </div>
+                    </div>
+                    <p className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                      Claim Submitted Successfully
+                    </p>
+                    <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                      Your meal claim for <strong>{CLAIM_BILL.vendor}</strong> ({CLAIM_BILL.total}) has been submitted for approval.
+                    </p>
+                    <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium"
+                      style={{ backgroundColor: 'var(--surface-1)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                      <span>Ref: <strong style={{ color: 'var(--text-primary)' }}>{CLAIM_BILL.ref}</strong></span>
+                      <span>·</span>
+                      <span>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            }
+
             return null;
           })}
 
@@ -970,21 +1712,31 @@ export function B2BChat({ onContextUpdate }: Props) {
         <div className="max-w-2xl mx-auto">
           <ChatComposer
             placeholder={
-              stage === 'ask_lan'             ? 'Enter 15-digit LAN' :
-              stage === 'doc_capturing'       ? 'Upload the document above' :
+              stage === 'ask_lan'             ? 'Enter 10-digit Loan Account Number' :
+              stage === 'doc_capturing'       ? 'Upload the supporting PDF document above' :
               stage === 'name_confirm'        ? 'Reply using the options above' :
               stage === 'leave_summary'       ? 'Choose an option above' :
               stage === 'leave_declaration'   ? 'Reply using the options above' :
-              (stage === 'success' || stage === 'leave_decl_success' || stage === 'generic')
-                                              ? 'What would you like to do next?' :
+              stage === 'do_intent'           ? 'Choose an option above' :
+              stage === 'do_upload'           ? 'Attach the dealer letter above' :
+              stage === 'do_governance'         ? 'Review and confirm above' :
+              stage === 'claim_bill_upload'     ? 'Upload your meal bill above' :
+              stage === 'claim_proof_upload'    ? 'Upload payment proof above' :
+              stage === 'claim_bill_type'       ? 'Choose bill type above' :
+              stage === 'claim_review'          ? 'Confirm or decline above' :
+              (stage === 'success' || stage === 'leave_decl_success' || stage === 'do_cancelled' || stage === 'claim_submitted' || stage === 'generic')
+                                                ? 'What would you like to do next?' :
               'Processing…'
             }
             disabled={
               stage !== 'ask_lan' &&
+              stage !== 'success' &&
               stage !== 'generic' &&
-              stage !== 'leave_decl_success'
+              stage !== 'leave_decl_success' &&
+              stage !== 'do_cancelled' &&
+              stage !== 'claim_submitted'
             }
-            onSendMessage={stage === 'ask_lan' ? handleLanSend : undefined}
+            onSendMessage={handleChatTraySend}
             onNewConversation={handleStartAnotherRequest}
           />
         </div>

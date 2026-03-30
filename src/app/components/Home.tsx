@@ -9,6 +9,7 @@ import { BotMessageText } from './BotMessageText';
 import { IMPSLimitTrackerCard } from './IMPSLimitTrackerCard';
 import { QuickReplyChips } from './QuickReplyChips';
 import { useAuth } from '../context/AuthContext';
+import { RoleBadge } from './RoleBadge';
 
 interface Message {
   id: string;
@@ -225,27 +226,12 @@ export function Home() {
           
           {/* Hero Block */}
           <div className="flex flex-col items-center gap-1 text-center">
-            <div className="flex items-baseline gap-3 flex-wrap justify-center">
-              <span
-                className="text-xs font-medium uppercase tracking-wider px-3 py-1 rounded-full"
-                style={{
-                  color: '#1d4ed8',
-                  backgroundColor: 'rgba(37,99,235,0.08)',
-                  border: '1px solid rgba(37,99,235,0.2)',
-                }}
-              >
-                Sales Manager
-              </span>
-              <h1
-                className="font-sans text-3xl sm:text-4xl md:text-5xl leading-tight"
-                style={{ color: 'var(--text-primary)', fontWeight: 400, letterSpacing: '-0.02em' }}
-              >
-                Afternoon, Rahul
-              </h1>
-            </div>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              rahul.ved@bajaj.finserv.in
-            </p>
+            <p style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}>Hi Rahul</p>
+            <h1
+              style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}
+            >
+              Where should we start?
+            </h1>
           </div>
 
           {/* Task Card */}

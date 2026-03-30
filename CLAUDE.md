@@ -1,6 +1,6 @@
 # CLAUDE.md — Enterprise AI Light
 
-This is a client-side React prototype for an **Enterprise AI Assistant** interface. No backend — all data is mocked/hardcoded.
+Client-side React prototype for an **Enterprise AI Assistant** interface. No backend — all data is mocked/hardcoded.
 
 ---
 
@@ -9,117 +9,144 @@ This is a client-side React prototype for an **Enterprise AI Assistant** interfa
 | Layer | Technology |
 |---|---|
 | Framework | React 18.3.1 + TypeScript |
-| Build Tool | Vite 6.3.5 |
+| Build | Vite 6.3.5 |
 | Routing | React Router 7.13.0 |
-| Styling | Tailwind CSS 4 + CSS Variables |
-| Animation | Motion 12.23.24 + inline keyframes |
-| UI Primitives | Radix UI (comprehensive) |
-| Icons | Lucide React 0.487.0 |
+| Styling | Tailwind CSS 4 + CSS Variables (`src/styles/theme.css`) |
+| Theme | `next-themes` — `ThemeProvider` wraps app in `App.tsx` |
+| Animation | Motion (`motion/react`) + inline `<style>` keyframes |
+| Icons | Lucide React (exclusively) |
 | Charts | Recharts 2.15.2 |
 | Forms | React Hook Form 7.55.0 |
-| Class Utils | clsx + tailwind-merge + class-variance-authority |
-| Toasts | Sonner 2.0.3 |
-| Component Lib | Material UI 7.3.5 (light usage, mainly for Emotion) |
-
----
-
-## Project Structure
-
-```
-enterprise-ai-light/
-├── src/
-│   ├── main.tsx                        # React root mount
-│   ├── app/
-│   │   ├── App.tsx                     # Root component, wraps with AuthProvider + RouterProvider
-│   │   ├── routes.tsx                  # All route definitions (createBrowserRouter)
-│   │   ├── context/
-│   │   │   └── AuthContext.tsx         # Auth state (isAuthenticated, login, logout)
-│   │   └── components/
-│   │       ├── LoginEntry.tsx          # Landing / login page
-│   │       ├── BiometricSetup.tsx      # Biometric onboarding
-│   │       ├── Login.tsx               # Quick sign-in screen
-│   │       ├── Home.tsx                # Main dashboard + AI chat
-│   │       ├── SalesHelpline.tsx       # Sales support chat
-│   │       ├── DealerOnboarding.tsx    # Dealer onboarding flow
-│   │       ├── ITServiceDesk.tsx       # IT ticket system
-│   │       ├── PortfolioMonitoring.tsx # Portfolio tracking
-│   │       ├── LeaveTracking.tsx       # Leave management
-│   │       ├── ChatComposer.tsx        # Reusable input tray (4 states)
-│   │       ├── MessageComponents.tsx   # UserMessageBubble, BotMessageText, QuickReplyChips
-│   │       ├── SegmentedControl.tsx    # Animated tab selector (Motion.js)
-│   │       └── sales-helpline/
-│   │           ├── SalesChat.tsx
-│   │           └── SalesComponents.tsx
-│   └── styles/
-│       ├── index.css                   # Main CSS entry (imports all below)
-│       ├── fonts.css                   # Font-face declarations
-│       ├── tailwind.css                # @import "tailwindcss"
-│       └── theme.css                   # All CSS design tokens (light + dark)
-├── docs/                               # Project documentation
-├── guidelines/
-│   └── Guidelines.md                  # Design guidelines
-├── index.html
-├── vite.config.ts
-├── postcss.config.mjs
-└── package.json
-```
+| Toasts | Sonner (`toast.success(...)`, `toast.error(...)`) |
+| Class Utils | `cn()` = clsx + tailwind-merge (`@/lib/utils`) |
+| UI Primitives | Radix UI + shadcn/ui (`src/app/components/ui/`) |
 
 ---
 
 ## Commands
 
 ```bash
-npm run dev       # Start dev server (Vite, usually http://localhost:5173)
-npm run build     # Production build
+npm run dev    # http://localhost:5173
+npm run build
 ```
 
 ---
 
-## Key Routes
+## Project Structure
 
-| Path | Component | Description |
+```
+src/
+├── main.tsx
+├── app/
+│   ├── App.tsx                  # ThemeProvider > AuthProvider > RouterProvider
+│   ├── routes.tsx               # createBrowserRouter — all routes
+│   ├── context/
+│   │   └── AuthContext.tsx      # useAuth() → { isAuthenticated, login, logout }
+│   └── components/
+│       ├── AppShell.tsx         # Reusable layout: sidebar + main + right panel
+│       ├── AppHeader.tsx        # Top bar with logo, theme toggle, panel toggles
+│       ├── LoginEntry.tsx       # Login page — email/password, demo user picker
+│       ├── BiometricSetup.tsx   # Fingerprint/face onboarding
+│       ├── Login.tsx            # Biometric quick-sign-in screen
+│       ├── Home.tsx             # Main AI chat dashboard (Rahul Ved / DMS)
+│       ├── EmployeeHome.tsx     # AI dashboard for Rita Sharma (AI Unit)
+│       ├── B2BHome.tsx          # AI dashboard for Rahul Shah (B2B Urban)
+│       ├── HRHome.tsx           # AI dashboard for Roshni Kale (HR)
+│       ├── SalesHelpline.tsx    # Sales support chat (AppShell wrapper)
+│       ├── DealerOnboarding.tsx # Multi-step dealer onboarding
+│       ├── ITServiceDesk.tsx    # IT ticket categories + chat
+│       ├── PortfolioMonitoring.tsx
+│       ├── LeaveTracking.tsx
+│       ├── ChatComposer.tsx     # Input tray — 4 states (see below)
+│       ├── UserMessageBubble.tsx
+│       ├── BotMessageText.tsx   # Supports isLoading shimmer animation
+│       ├── QuickReplyChips.tsx  # "Yes, raise it" / "Not now" chips
+│       ├── SegmentedControl.tsx # Motion.js animated tab bar
+│       ├── RoleBadge.tsx        # Pill badge with tone: 'blue'|'green'|'purple'
+│       ├── TaskTile.tsx         # Icon + text action tile
+│       ├── NextActionsCard.tsx  # Card wrapping action button grid
+│       ├── IMPSLimitTrackerCard.tsx
+│       ├── NotificationPanel.tsx
+│       ├── SuggestiveActions.tsx # Category pill + prompt panel
+│       ├── BrandMark.tsx        # Small brand SVG mark
+│       ├── B2BChat.tsx
+│       ├── figma/ImageWithFallback.tsx
+│       └── sales-helpline/
+│           ├── SalesChat.tsx
+│           └── SalesComponents.tsx
+└── styles/
+    ├── index.css    # Imports all below
+    ├── fonts.css
+    ├── tailwind.css # @import "tailwindcss"
+    └── theme.css    # All CSS design tokens (light + dark)
+```
+
+---
+
+## Routes & Auth Flow
+
+| Path | Component | User |
 |---|---|---|
-| `/` | `LoginEntry` | Email + password login entry |
-| `/biometric-setup` | `BiometricSetup` | Fingerprint/face setup (special users) |
-| `/quicksignin` | `Login` | Biometric quick-auth screen |
-| `/home` | `Home` | Main AI assistant dashboard |
-| `/saleshelpline` | `SalesHelpline` | Sales support chat with sidebar |
-| `/dealeronboarding` | `DealerOnboarding` | Multi-step dealer onboarding |
-| `/itservicedesk` | `ITServiceDesk` | IT ticket categories + chat |
-| `/portfoliomonitoring` | `PortfolioMonitoring` | Portfolio tracking view |
-| `/leavetracking` | `LeaveTracking` | Leave management view |
+| `/` | `LoginEntry` | — |
+| `/biometric-setup` | `BiometricSetup` | Rahul Ved only |
+| `/quicksignin` | `Login` | fallback |
+| `/home` | `Home` | fallback → /quicksignin |
+| `/saleshelpline` | `SalesHelpline` | Rahul Ved (DMS) |
+| `/employee-home` | `EmployeeHome` | Rita Sharma (AI Unit) |
+| `/b2b-home` | `B2BHome` | Rahul Shah (B2B Urban) |
+| `/hr-home` | `HRHome` | Roshni Kale (HR) |
+| `/dealeronboarding` | `DealerOnboarding` | — |
+| `/itservicedesk` | `ITServiceDesk` | — |
+| `/portfoliomonitoring` | `PortfolioMonitoring` | — |
+| `/leavetracking` | `LeaveTracking` | — |
 
-### Auth Flow
-
+**Auth routing logic (LoginEntry):**
 ```
-/ (LoginEntry)
-  ├─ rahul.ved@gmail.com → /biometric-setup → /saleshelpline
-  └─ anyone else         → /quicksignin     → /home
+rahul.ved@bajaj.finserv.in  → /biometric-setup → /saleshelpline
+rita.sharma@bajaj.finserv.in → /employee-home
+rahul.shah@bajaj.finserv.in  → /b2b-home
+roshni.kale@bajaj.finserv.in → /hr-home
+anyone else                  → /quicksignin → /home
 ```
 
-Auth state lives in `AuthContext` — `useAuth()` provides `{ isAuthenticated, login, logout }`.
+All demo users accept any non-empty password.
 
 ---
 
-## Code Patterns
+## Key Patterns
 
-### Component structure
+### Component
 ```tsx
-// Props interface at top
-interface Props {
-  label: string;
-  onClick?: () => void;
-}
+interface Props { label: string; onClick?: () => void; }
 
-// Functional component with hooks
-export default function MyComponent({ label, onClick }: Props) {
+export function MyComponent({ label, onClick }: Props) {
   const [state, setState] = useState(false);
   return <div>...</div>;
 }
 ```
 
-### Inline keyframe animations
-Components define animations in a co-located `<style>` tag:
+### Styling — three layers
+1. **Tailwind CSS 4** — primary; use `hover:bg-[var(--surface-2)]`, `active:scale-[0.96]` etc.
+2. **CSS variables** — for theming; prefer over hardcoded hex
+3. **Inline `style`** — only when value must come from a CSS var at runtime
+
+```tsx
+// Correct — CSS var in inline style
+style={{ backgroundColor: 'var(--surface-1)', color: 'var(--text-primary)' }}
+
+// Correct — hover/active via Tailwind (NOT onMouseEnter/Leave DOM mutations)
+className="hover:bg-[var(--surface-2)] active:scale-[0.96]"
+```
+
+**Never use `onMouseEnter/Leave` to mutate `e.currentTarget.style`** — use Tailwind hover classes instead.
+
+### Hover on conditionally-styled elements
+When an element's default background varies (e.g. active vs inactive state), keep the conditional background in `className`, not `style`:
+```tsx
+className={`... ${isActive ? 'bg-[var(--surface-2)]' : 'bg-transparent hover:bg-[var(--surface-2)]'}`}
+```
+
+### Animations — inline keyframes
 ```tsx
 <>
   <style>{`
@@ -132,126 +159,69 @@ Components define animations in a co-located `<style>` tag:
 </>
 ```
 
-### CSS variable usage for theming
-Prefer CSS vars over hardcoded colors so dark mode works automatically:
-```tsx
-style={{ backgroundColor: 'var(--surface-1)', color: 'var(--text-primary)' }}
-```
-
-### Class merging utility
-Use `cn()` (clsx + tailwind-merge) for conditional classnames:
-```tsx
-import { cn } from '@/lib/utils';
-<div className={cn('base-class', isActive && 'active-class')} />
-```
+Motion.js for layout/spring: `<motion.div layoutId="..." transition={{ type: 'spring' }} />`
 
 ### Staged bot responses
-Pages simulate AI responses using `setTimeout` chains and a union-type stage variable:
 ```tsx
-type BotResponseStage = 'idle' | 'thinking' | 'streaming' | 'done';
+type BotResponseStage = 'idle' | 'line1' | 'line2' | 'line3' | 'showChips' | 'showCard';
+// useEffect watches botStage, chains setTimeout to add messages and advance stage
 ```
 
-### Motion.js animated tabs (SegmentedControl)
-Uses `<motion.div layoutId="...">` for smooth sliding background:
+### AppShell layout
+Used by SalesHelpline, EmployeeHome, B2BHome, HRHome:
 ```tsx
-<motion.div layoutId="segment-bg" transition={{ type: 'spring', ... }} />
+<AppShell
+  conversations={CONVERSATIONS}   // ConversationItem[]
+  user={USER}                      // UserInfo
+  accentBorderColor="rgba(...)"
+  accentTextColor="#hex"
+  rightPanel={<NotificationPanel ... />}
+  rightPanelMobile={(onClose) => <NotificationMobilePanel onClose={onClose} />}
+>
+  <PageContent />
+</AppShell>
 ```
 
----
-
-## Path Aliases
-
-Configured in `vite.config.ts`:
-
-```ts
-resolve: {
-  alias: { '@': path.resolve(__dirname, './src') }
-}
-```
-
-Use `@/` instead of relative `../../` imports everywhere:
-```ts
-import AuthContext from '@/app/context/AuthContext';
-import { cn } from '@/lib/utils';
-```
-
----
-
-## Styling
-
-### Overview
-Three layers work together:
-
-1. **Tailwind CSS 4** — utility classes (primary approach)
-2. **CSS Variables** (`src/styles/theme.css`) — design tokens, auto dark mode
-3. **Inline `style` props** — when a value must come from a CSS var dynamically
-
-### Design Tokens (`src/styles/theme.css`)
-
-```css
-:root {
-  --background: #f9fafb;
-  --surface-1: #ffffff;
-  --surface-2: #f3f4f6;
-  --primary: #030213;
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --border: #e5e7eb;
-  --border-subtle: #f3f4f6;
-  --status-success: #16a34a;
-  --status-warning: #d97706;
-  --status-danger: #dc2626;
-  --status-info: #2563eb;
-  /* ...charts, sidebar, input vars */
-}
-
-.dark {
-  --background: #1a1a1f;
-  --surface-1: #242429;
-  --surface-2: #2d2d33;
-  --text-primary: #f5f5f7;
-  /* ...dark overrides */
-}
-```
-
-### Dark Mode
-Toggle the `.dark` class on `<html>` or a wrapper element. All CSS vars flip automatically. Use `dark:` Tailwind prefix for class-based overrides:
+### RoleBadge
 ```tsx
-className="bg-white dark:bg-[#1a1a1f]"
+<RoleBadge label="Sales Manager" tone="blue" />  // tone: 'blue'|'green'|'purple'
 ```
 
-### Responsive Prefixes
-Mobile-first with standard Tailwind breakpoints:
-```tsx
-className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-className="hidden lg:flex"   // sidebar — desktop only
-```
-
-### Fonts
-Declared in `src/styles/fonts.css`. Custom typefaces loaded via `@font-face`.
-
----
-
-## ChatComposer States
-
-The `ChatComposer` component has 4 distinct UI states:
-
+### ChatComposer states
 | State | UI |
 |---|---|
-| `default` | Text input + mic button + send button |
-| `recording` | Waveform animation + elapsed timer |
-| `transcribing` | Gradient shimmer "processing" state |
+| `default` | Text input + mic + send |
+| `recording` | Animated waveform (CSS-driven) + timer |
+| `transcribing` | Shimmer / spinner |
 | `transcriptReady` | Transcript text ready to send |
+
+---
+
+## Design Tokens (key vars)
+
+```css
+/* Light (default) */
+--background: #f9fafb;   --surface-1: #ffffff;    --surface-2: #f3f4f6;
+--text-primary: #111827; --text-secondary: #4b5563;
+--border: #e5e7eb;       --border-subtle: #f3f4f6;
+--brand-blue: #2563eb;
+--status-success: #16a34a; --status-warning: #d97706;
+--status-danger: #dc2626;  --status-info: #2563eb;
+
+/* Dark (.dark class on <html>) — all vars auto-flip */
+--background: #1a1a1f;  --surface-1: #242429;  --surface-2: #2d2d33;
+--text-primary: #f5f5f7;
+```
+
+Dark mode: `next-themes` manages the `.dark` class. Use `dark:` Tailwind prefix for class overrides.
 
 ---
 
 ## Conventions
 
-- **Component files:** PascalCase matching the component name (`Home.tsx`)
-- **CSS variables:** kebab-case (`--text-primary`)
-- **No Redux** — React Context for auth, `useState` for everything else
-- **No real API calls** — all data is hardcoded mock data
-- **TypeScript throughout** — define prop interfaces, use type unions for state stages
-- **Animations** — prefer Motion.js for layout/spring animations; inline keyframes for entrance effects
-- **Icons** — use Lucide React exclusively
-- **Toasts** — use Sonner (`toast.success(...)`, `toast.error(...)`)
+- **Path alias:** `@/` = `src/` (configured in `vite.config.ts`)
+- **No Redux** — `AuthContext` for auth, `useState` for all other state
+- **No real API calls** — all data hardcoded
+- **TypeScript throughout** — explicit `Props` interfaces, type unions for stage variables
+- **No nested ternaries** — use `if/else` or `switch` for multiple conditions
+- **Unused wrappers** — don't add pass-through functions or redundant wrapper divs

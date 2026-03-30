@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { FileText, Calendar, Users, BarChart2 } from 'lucide-react';
 import { ChatComposer } from './ChatComposer';
 import { AppShell, type ConversationItem, type UserInfo } from './AppShell';
@@ -69,15 +69,7 @@ const HR_CATEGORIES: SuggestiveCategory[] = [
   },
 ];
 
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Morning';
-  if (hour < 17) return 'Afternoon';
-  return 'Evening';
-}
-
 export function HRHome() {
-  const greeting = useMemo(() => getGreeting(), []);
   const [prefillText, setPrefillText] = useState('');
 
   return (
@@ -100,25 +92,12 @@ export function HRHome() {
       <div className="flex flex-col items-center justify-center h-full px-4 py-8 gap-5 overflow-y-auto">
         {/* Badge + greeting */}
         <div className="flex flex-col items-center gap-2 text-center">
-          <span
-            className="text-xs font-medium uppercase tracking-wider px-3 py-1 rounded-full"
-            style={{
-              color: '#b45309',
-              backgroundColor: 'rgba(217,119,6,0.08)',
-              border: '1px solid rgba(217,119,6,0.2)',
-            }}
-          >
-            HR
-          </span>
+          <p style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}>Hi Roshni</p>
           <h1
-            className="text-4xl sm:text-5xl leading-tight"
-            style={{ color: 'var(--text-primary)', fontFamily: "'Lora', serif", fontWeight: 400, letterSpacing: '-0.01em' }}
+            style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}
           >
-            {greeting}, Roshni
+            Where should we start?
           </h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Senior Lead, Pune
-          </p>
         </div>
 
         {/* Chat input */}

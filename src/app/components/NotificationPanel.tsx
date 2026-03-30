@@ -50,6 +50,7 @@ type NotificationItem =
       requester: string;
       summary: string;
       details: string[];
+      actions?: string[];
       timestamp: string;
     }
   | {
@@ -84,7 +85,7 @@ type NotificationItem =
     };
 
 interface NotificationPanelProps {
-  profile: 'dms' | 'b2b' | 'hr';
+  profile: 'dms' | 'b2b' | 'hr' | 'corporate';
   className?: string;
   desktopWidthClass?: string;
 }
@@ -95,6 +96,7 @@ const PANEL_BG_DARK = '#18181B';
 const FILTERS: NotificationFilter[] = ['all', 'unread'];
 
 const PROFILE_NOTIFICATIONS: Record<NotificationPanelProps['profile'], NotificationItem[]> = {
+  corporate: [],
   dms: [
     {
       id: 'dms-c-1',
@@ -174,71 +176,61 @@ const PROFILE_NOTIFICATIONS: Record<NotificationPanelProps['profile'], Notificat
       group: 'action',
       layout: 'C',
       title: 'Expense Claim Approval',
-      requester: 'Rakesh Kulkarni',
-      summary: 'Travel expense claim of ₹8,450 needs your approval.',
-      details: ['Trip: Nagpur to Pune', 'Policy fit: Within entitlement', 'Finance SLA: 24 hours'],
+      requester: 'Ajay Verma',
+      summary: 'Travel expense claim of ₹3,200 needs your approval.',
+      details: ['Trip: Pune → Nashik'],
+      actions: ['Approve', 'Reject', 'Request details'],
       timestamp: '4m ago',
     },
     {
-      id: 'b2b-d-1',
+      id: 'b2b-c-2',
       group: 'action',
-      layout: 'D',
-      title: 'B2B Credit Limit Request',
-      summary: 'Urban Retail cluster requests temporary limit increase of ₹5,00,000.',
-      primaryAction: 'Approve',
-      secondaryAction: 'Query',
-      tertiaryAction: 'Delegate',
-      timestamp: '16m ago',
-    },
-    {
-      id: 'b2b-b-1',
-      group: 'blocked',
-      layout: 'B',
-      title: 'Name Change Workflow',
-      steps: ['Submitted', 'Under Review', 'Awaiting Approval', 'Resolved'],
-      currentStep: 2,
-      stuckStep: 2,
-      timeInStage: 'Stuck for 1h 35m',
-      timestamp: '22m ago',
-    },
-    {
-      id: 'b2b-e-1',
-      group: 'time',
-      layout: 'E',
-      title: 'Compliance Expiry Warning',
-      description: '2 B2B partners have KYC documents expiring.',
-      countdown: '6h 05m left',
-      severity: 'medium',
-      timestamp: '11m ago',
+      layout: 'C',
+      title: 'Leave Approval Request',
+      requester: 'Rakesh Kulkarni',
+      summary: 'Casual leave request for 29 Mar submitted by Rakesh Kulkarni.',
+      details: [],
+      actions: ['Approve', 'Reject'],
+      timestamp: '10m ago',
     },
     {
       id: 'b2b-a-1',
       group: 'progress',
       layout: 'A',
-      title: 'Deal Approval Pipeline',
-      status: 'Processing',
-      progress: 45,
-      nextStep: 'Risk team validation',
-      timestamp: '9m ago',
+      title: 'Leave Request Submitted',
+      status: 'Pending approval',
+      progress: 25,
+      nextStep: 'Awaiting manager approval',
+      timestamp: '15m ago',
     },
     {
-      id: 'b2b-a-2',
-      group: 'progress',
-      layout: 'A',
-      title: 'Ticket Approval Progress',
-      status: 'In Review',
-      progress: 70,
-      nextStep: 'Final approver sign-off',
-      timestamp: '14m ago',
+      id: 'b2b-c-3',
+      group: 'action',
+      layout: 'C',
+      title: 'Claim Requires Clarification',
+      requester: 'Finance Team',
+      summary: 'Fuel claim needs additional receipt upload to proceed.',
+      details: [],
+      actions: ['Attach Receipt'],
+      timestamp: '20m ago',
+    },
+    {
+      id: 'b2b-e-1',
+      group: 'time',
+      layout: 'E',
+      title: 'Mandatory Survey Pending',
+      description: 'Employee Engagement Survey. Estimated time: 5 mins.',
+      countdown: 'Due today',
+      severity: 'medium',
+      timestamp: 'Now',
     },
     {
       id: 'b2b-f-1',
       group: 'fyi',
       layout: 'F',
-      title: 'System Maintenance',
-      description: 'API gateway maintenance tonight, 11:00 PM - 1:00 AM.',
-      timestamp: '49m ago',
-      viewLabel: 'View details',
+      title: 'DO Cancelled Successfully',
+      description: 'You cancelled the DO for LAN: XX123456.',
+      timestamp: '30m ago',
     },
   ],
   hr: [
@@ -435,7 +427,7 @@ function getBadgeStyles(tone: BadgeTone, isDark: boolean) {
 
 function getActionLabels(item: NotificationItem) {
   if (item.layout === 'C') {
-    return ['Approve', 'Decline', 'Details'];
+    return item.actions ?? ['Approve', 'Decline', 'Details'];
   }
 
   if (item.layout === 'D') {

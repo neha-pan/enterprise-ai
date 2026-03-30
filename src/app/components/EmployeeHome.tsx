@@ -270,16 +270,12 @@ export function EmployeeHome() {
             <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-4">
               {/* Greeting stays visible at top once chat starts */}
               <div className="flex flex-col items-center gap-2 text-center pb-2">
-                <RoleBadge label="AI Unit" tone="green" />
+                <p style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}>Hi Rita</p>
                 <h1
-                  className="text-3xl sm:text-4xl leading-tight"
-                  style={{ color: 'var(--text-primary)', fontFamily: "'Lora', serif", fontWeight: 400, letterSpacing: '-0.01em' }}
+                  style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}
                 >
-                  Afternoon, Rita
+                  Where should we start?
                 </h1>
-                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  Unit Manager, Pune
-                </p>
               </div>
 
               {messages.map(message => (
@@ -309,16 +305,12 @@ export function EmployeeHome() {
         <div className="flex flex-col items-center justify-center h-full px-4 py-8 gap-5 overflow-y-auto">
           {/* Greeting */}
           <div className="flex flex-col items-center gap-2 text-center">
-            <RoleBadge label="AI Unit" tone="green" />
+            <p style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}>Hi Rita</p>
             <h1
-              className="text-3xl sm:text-4xl md:text-5xl leading-tight"
-              style={{ color: 'var(--text-primary)', fontFamily: "'Lora', serif", fontWeight: 400, letterSpacing: '-0.01em' }}
+              style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}
             >
-              Afternoon, Rita
+              Where should we start?
             </h1>
-            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-              Unit Manager, Pune
-            </p>
           </div>
 
           {/* Centred composer */}

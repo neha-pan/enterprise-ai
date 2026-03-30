@@ -11,6 +11,7 @@ import { LeaveTracking } from "./components/LeaveTracking";
 import { EmployeeHome } from "./components/EmployeeHome";
 import { B2BHome } from "./components/B2BHome";
 import { HRHome } from "./components/HRHome";
+import { CorporateHome } from "./components/CorporateHome";
 
 export const router = createBrowserRouter([
   {
@@ -44,6 +45,10 @@ export const router = createBrowserRouter([
   {
     path: "/hr-home",
     Component: HRHome,
+  },
+  {
+    path: "/corporate-home",
+    Component: CorporateHome,
   },
   {
     path: "/dealeronboarding",

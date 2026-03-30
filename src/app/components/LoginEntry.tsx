@@ -9,6 +9,7 @@ interface DemoUser {
   name: string;
   initials: string;
   role: string;
+  designation: string;
   avatarBg: string;
   badgeColor: string;
   badgeDarkColor: string;
@@ -22,6 +23,7 @@ const DEMO_USERS: DemoUser[] = [
     name: 'Rahul Ved',
     initials: 'RV',
     role: 'DMS',
+    designation: 'Collection Manager, Pune',
     avatarBg: '#2563eb',
     badgeColor: '#1d4ed8',
     badgeDarkColor: '#60A5FA',
@@ -33,6 +35,7 @@ const DEMO_USERS: DemoUser[] = [
     name: 'Rita Sharma',
     initials: 'RS',
     role: 'AI Unit',
+    designation: 'Unit Manager, Pune',
     avatarBg: '#16a34a',
     badgeColor: '#15803d',
     badgeDarkColor: '#4ADE80',
@@ -41,9 +44,10 @@ const DEMO_USERS: DemoUser[] = [
   },
   {
     email: 'rahul.shah@bajaj.finserv.in',
-    name: 'Rahu Shah',
+    name: 'Rahul Shah',
     initials: 'RSh',
     role: 'B2B Urban',
+    designation: 'Sales Manager, Nagpur',
     avatarBg: '#7c3aed',
     badgeColor: '#6d28d9',
     badgeDarkColor: '#C084FC',
@@ -55,11 +59,24 @@ const DEMO_USERS: DemoUser[] = [
     name: 'Roshni Kale',
     initials: 'RK',
     role: 'HR',
+    designation: 'Senior Lead, Pune',
     avatarBg: '#d97706',
     badgeColor: '#b45309',
     badgeDarkColor: '#FCD34D',
     badgeBg: 'rgba(217,119,6,0.08)',
     route: '/hr-home',
+  },
+  {
+    email: 'anurag.chottani@bajaj.finserv.in',
+    name: 'Anurag Chottani',
+    initials: 'AC',
+    role: 'Corporate',
+    designation: 'Chief Operating Officer, Pune',
+    avatarBg: '#0e7490',
+    badgeColor: '#0e6e87',
+    badgeDarkColor: '#22D3EE',
+    badgeBg: 'rgba(14,116,144,0.08)',
+    route: '/corporate-home',
   },
 ];
 
@@ -110,6 +127,8 @@ export function LoginEntry() {
       navigate('/b2b-home');
     } else if (emailLower === 'roshni.kale@bajaj.finserv.in') {
       navigate('/hr-home');
+    } else if (emailLower === 'anurag.chottani@bajaj.finserv.in') {
+      navigate('/corporate-home');
     } else {
       navigate('/quicksignin');
     }
@@ -333,7 +352,7 @@ export function LoginEntry() {
                           className="text-xs truncate"
                           style={{ color: 'var(--text-secondary)' }}
                         >
-                          {user.email}
+                          {user.designation}
                         </p>
                       </div>
 

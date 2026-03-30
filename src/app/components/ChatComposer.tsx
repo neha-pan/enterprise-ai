@@ -143,10 +143,8 @@ export function ChatComposer({
                 ].map(({ Icon, label }) => (
                   <button
                     key={label}
-                    className="flex items-center gap-3 w-full px-3.5 py-2.5 text-sm text-left transition-colors"
+                    className="flex items-center gap-3 w-full px-3.5 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-2)]"
                     style={{ color: 'var(--text-primary)' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-2)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'}
                     onClick={() => setShowPlusMenu(false)}
                   >
                     <Icon size={15} strokeWidth={1.75} style={{ color: 'var(--text-secondary)' }} />
@@ -157,10 +155,8 @@ export function ChatComposer({
                   <>
                     <div className="my-1 mx-3" style={{ height: '1px', backgroundColor: 'var(--border-subtle)' }} />
                     <button
-                      className="flex items-center gap-3 w-full px-3.5 py-2.5 text-sm text-left transition-colors"
+                      className="flex items-center gap-3 w-full px-3.5 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-2)]"
                       style={{ color: 'var(--text-primary)' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-2)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'}
                       onClick={() => { setShowPlusMenu(false); onNewConversation(); }}
                     >
                       <Home size={15} strokeWidth={1.75} style={{ color: 'var(--text-secondary)' }} />

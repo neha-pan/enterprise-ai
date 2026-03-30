@@ -374,27 +374,22 @@ export const SalesChat = () => {
     return (
       <div className="flex flex-col items-center justify-center h-full px-4 py-8 gap-5 overflow-y-auto">
         <div className="flex flex-col items-center gap-2 text-center">
-          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
-            <RoleBadge label="DMS" tone="blue" />
-          </motion.div>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}
+          >
+            Hi Rahul
+          </motion.p>
           <motion.h1
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.2 }}
-            className="text-3xl sm:text-4xl md:text-5xl leading-tight"
-            style={{ color: 'var(--text-primary)', fontFamily: "'Lora', serif", fontWeight: 400, letterSpacing: '-0.01em' }}
+            style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}
           >
-            Afternoon, Rahul
+            Where should we start?
           </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.18, duration: 0.22 }}
-            className="text-sm font-medium"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            Collection Manager, Pune
-          </motion.p>
         </div>
 
         <div className="w-full max-w-xl">
