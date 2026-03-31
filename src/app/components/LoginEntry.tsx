@@ -78,6 +78,18 @@ const DEMO_USERS: DemoUser[] = [
     badgeBg: 'rgba(14,116,144,0.08)',
     route: '/corporate-home',
   },
+  {
+    email: 'amit.shah@bajaj.finserv.in',
+    name: 'Amit Shah',
+    initials: 'AS',
+    role: 'RCOM',
+    designation: 'Regional Credit Ops Manager, Pune',
+    avatarBg: '#0f766e',
+    badgeColor: '#0f766e',
+    badgeDarkColor: '#2DD4BF',
+    badgeBg: 'rgba(15,118,110,0.08)',
+    route: '/rcomms-home',
+  },
 ];
 
 export function LoginEntry() {
@@ -129,6 +141,8 @@ export function LoginEntry() {
       navigate('/hr-home');
     } else if (emailLower === 'anurag.chottani@bajaj.finserv.in') {
       navigate('/corporate-home');
+    } else if (emailLower === 'amit.shah@bajaj.finserv.in') {
+      navigate('/rcomms-home');
     } else {
       navigate('/quicksignin');
     }
@@ -291,8 +305,9 @@ export function LoginEntry() {
               {/* Dropdown panel */}
               {dropdownOpen && (
                 <div
-                  className="absolute left-0 right-0 top-[calc(100%+6px)] rounded-2xl shadow-xl overflow-hidden"
+                  className="absolute left-0 right-0 top-[calc(100%+6px)] rounded-2xl shadow-xl overflow-y-auto"
                   style={{
+                    maxHeight: 'min(320px, calc(100vh - 220px))',
                     backgroundColor: 'var(--surface-1)',
                     border: '1px solid var(--border-subtle)',
                     zIndex: 50,
@@ -301,8 +316,8 @@ export function LoginEntry() {
                 >
                   {/* Header */}
                   <div
-                    className="px-4 py-2.5 border-b"
-                    style={{ borderColor: 'var(--border-subtle)' }}
+                    className="px-4 py-2.5 border-b sticky top-0 z-10"
+                    style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--surface-1)' }}
                   >
                     <span
                       className="text-xs font-medium uppercase tracking-wider"

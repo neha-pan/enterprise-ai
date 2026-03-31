@@ -18,74 +18,61 @@ import {
 type NotificationGroup = 'action' | 'blocked' | 'time' | 'progress' | 'fyi';
 type Severity = 'low' | 'medium' | 'high';
 type NotificationFilter = 'all' | 'unread';
-type BadgeTone = 'urgent' | 'moderate' | 'status' | 'fyi';
+type BadgeTone = 'urgent' | 'moderate' | 'status' | 'fyi' | 'success';
+
+type NotificationBase = {
+  id: string;
+  group: NotificationGroup;
+  title: string;
+  timestamp: string;
+  badgeLabel?: string;
+  badgeTone?: BadgeTone;
+};
 
 type NotificationItem =
-  | {
-      id: string;
-      group: NotificationGroup;
+  | (NotificationBase & {
       layout: 'A';
-      title: string;
       status: string;
       progress: number;
       nextStep: string;
-      timestamp: string;
-    }
-  | {
-      id: string;
-      group: NotificationGroup;
+    })
+  | (NotificationBase & {
       layout: 'B';
-      title: string;
       steps: string[];
       currentStep: number;
       stuckStep?: number;
       timeInStage?: string;
-      timestamp: string;
-    }
-  | {
-      id: string;
-      group: NotificationGroup;
+    })
+  | (NotificationBase & {
       layout: 'C';
-      title: string;
       requester: string;
       summary: string;
       details: string[];
       actions?: string[];
-      timestamp: string;
-    }
-  | {
-      id: string;
-      group: NotificationGroup;
+    })
+  | (NotificationBase & {
       layout: 'D';
-      title: string;
       summary: string;
       primaryAction: string;
       secondaryAction: string;
       tertiaryAction: string;
-      timestamp: string;
-    }
-  | {
-      id: string;
-      group: NotificationGroup;
+    })
+  | (NotificationBase & {
       layout: 'E';
-      title: string;
       description: string;
       countdown: string;
       severity: Severity;
-      timestamp: string;
-    }
-  | {
-      id: string;
-      group: NotificationGroup;
+    })
+  | (NotificationBase & {
       layout: 'F';
-      title: string;
       description: string;
-      timestamp: string;
+      details?: string[];
+      actions?: string[];
       viewLabel?: string;
-    };
+    });
 
 interface NotificationPanelProps {
-  profile: 'dms' | 'b2b' | 'hr' | 'corporate';
+  profile: 'dms' | 'b2b' | 'hr' | 'corporate' | 'rcomms';
   className?: string;
   desktopWidthClass?: string;
 }
@@ -96,7 +83,176 @@ const PANEL_BG_DARK = '#18181B';
 const FILTERS: NotificationFilter[] = ['all', 'unread'];
 
 const PROFILE_NOTIFICATIONS: Record<NotificationPanelProps['profile'], NotificationItem[]> = {
-  corporate: [],
+  rcomms: [
+    {
+      id: 'rcomms-c-1',
+      group: 'action',
+      layout: 'C',
+      title: 'Deviation Pending Beyond SLA',
+      requester: 'Top branch: Nashik',
+      summary: '9 credit cases have deviations pending beyond SLA (>48 hrs). Oldest ageing: 62 hrs.',
+      details: ['SLA threshold: 48 hrs', 'Oldest case: 62 hrs', 'Branches affected: 3'],
+      actions: ['View cases', 'Reassign', 'Escalate'],
+      timestamp: 'Now',
+    },
+    {
+      id: 'rcomms-e-1',
+      group: 'time',
+      layout: 'E',
+      title: 'High Deviation Spike',
+      description: 'Deviation rate crossed 4% today in Consumer Durable cases. Primary reason: KYC document mismatch.',
+      countdown: 'Today',
+      severity: 'high',
+      timestamp: '8m ago',
+    },
+    {
+      id: 'rcomms-d-1',
+      group: 'action',
+      layout: 'D',
+      title: 'Disbursal Delay Alert',
+      summary: '12 Business Loan cases delayed beyond TAT. ₹4.6 Cr disbursal at risk.',
+      primaryAction: 'View cases',
+      secondaryAction: 'Prioritise',
+      tertiaryAction: 'Escalate to Ops Head',
+      timestamp: '15m ago',
+    },
+    {
+      id: 'rcomms-f-1',
+      group: 'fyi',
+      layout: 'F',
+      title: 'Daily Disbursal Summary',
+      description: "Today's disbursal completed: ₹2.8 Cr across 41 cases. Top product: Personal Loans.",
+      timestamp: '30m ago',
+      viewLabel: 'View product breakup',
+    },
+    {
+      id: 'rcomms-b-1',
+      group: 'blocked',
+      layout: 'B',
+      title: 'STP Leakage Detected',
+      steps: ['Identified', 'Under Review', 'Corrective Action', 'Resolved'],
+      currentStep: 1,
+      stuckStep: 1,
+      timeInStage: 'Flagged 2h ago',
+      timestamp: '2h ago',
+    },
+    {
+      id: 'rcomms-a-1',
+      group: 'progress',
+      layout: 'A',
+      title: 'Queue Build-up Alert',
+      status: 'Building up',
+      progress: 72,
+      nextStep: 'Redistribute workload',
+      timestamp: '45m ago',
+    },
+  ],
+  corporate: [
+    {
+      id: 'corp-c-1',
+      group: 'action',
+      layout: 'C',
+      title: 'Budget Approval Required',
+      requester: 'Digital Platforms Team',
+      summary: 'Proposed budget of ₹4.2 Cr for AI Infra Scale-up requires your approval.',
+      details: ['Impact: Q1 FY26 delivery timelines'],
+      actions: ['Approve', 'Reject', 'Request details'],
+      timestamp: 'Now',
+    },
+    {
+      id: 'corp-c-2',
+      group: 'action',
+      layout: 'C',
+      title: 'Hiring Approval Request',
+      requester: 'People & Capability',
+      summary: 'Approval required to hire 3 Senior Engineers (AI / Platform).',
+      details: ['Justification: Attrition backfill + new initiatives', 'Budget impact: Within approved AOP'],
+      actions: ['Approve', 'Reject', 'View justification'],
+      timestamp: '4m ago',
+    },
+    {
+      id: 'corp-c-3',
+      group: 'action',
+      layout: 'C',
+      title: 'Rewards & Recognition Approval',
+      requester: 'Digital Ops',
+      summary: 'Special reward request for 5 employees from Digital Ops.',
+      details: ['Reason: Critical delivery during peak cycle', 'Total payout: ₹3.5 Lakhs'],
+      actions: ['Approve', 'Reject', 'View nominations'],
+      timestamp: '9m ago',
+    },
+    {
+      id: 'corp-f-1',
+      group: 'blocked',
+      layout: 'F',
+      title: 'Attrition Breach Alert',
+      description: 'AI and Productization units breached AOP attrition targets.',
+      details: ['Overall attrition: 8.4%'],
+      actions: ['View attrition summary', 'Add to EMC minutes'],
+      badgeLabel: 'Needs attention',
+      badgeTone: 'moderate',
+      timestamp: '14m ago',
+    },
+    {
+      id: 'corp-f-2',
+      group: 'fyi',
+      layout: 'F',
+      title: 'Digital KID Exception Alert',
+      description: 'Out of 48 Digital KPIs tracked:',
+      details: ['Green: 41', 'Amber: 5', 'Red: 2', 'Areas impacted: App performance, acquisition mix'],
+      actions: ['View red & amber metrics'],
+      badgeLabel: 'Info',
+      badgeTone: 'fyi',
+      timestamp: '20m ago',
+    },
+    {
+      id: 'corp-f-3',
+      group: 'blocked',
+      layout: 'F',
+      title: 'Project Go-Live Delay',
+      description: '3 IT projects slipped beyond committed go-live dates.',
+      details: ['Largest slip: +26 days'],
+      actions: ['View delayed projects', 'Add to review agenda'],
+      badgeLabel: 'Needs attention',
+      badgeTone: 'moderate',
+      timestamp: '28m ago',
+    },
+    {
+      id: 'corp-f-4',
+      group: 'fyi',
+      layout: 'F',
+      title: 'Monthly COO Control Brief Ready',
+      description: 'Your Monthly COO Control Brief is ready.',
+      details: ['Includes: Attrition', 'Includes: Digital KID', 'Includes: Project Status', 'Includes: Key approvals summary'],
+      actions: ['View brief', 'Share with leadership'],
+      badgeLabel: 'Info',
+      badgeTone: 'fyi',
+      timestamp: '45m ago',
+    },
+    {
+      id: 'corp-f-5',
+      group: 'fyi',
+      layout: 'F',
+      title: 'Approval Completed',
+      description: 'You approved the ₹1.8 Cr Cloud Optimisation budget.',
+      details: ['Requested by: IT Infrastructure Team'],
+      badgeLabel: 'Completed',
+      badgeTone: 'success',
+      timestamp: '2h ago',
+    },
+    {
+      id: 'corp-f-6',
+      group: 'fyi',
+      layout: 'F',
+      title: 'Compliance Milestone Met',
+      description: 'All mandatory KID and compliance submissions completed for this cycle.',
+      details: ['No pending regulatory actions'],
+      actions: ['View compliance summary'],
+      badgeLabel: 'Completed',
+      badgeTone: 'success',
+      timestamp: '4h ago',
+    },
+  ],
   dms: [
     {
       id: 'dms-c-1',
@@ -378,30 +534,29 @@ function getNotificationSummary(item: NotificationItem) {
 }
 
 function getBadgeConfig(item: NotificationItem): { label: string; tone: BadgeTone } {
+  let fallback: { label: string; tone: BadgeTone };
+
   if (item.layout === 'A') {
-    return { label: item.status, tone: 'status' };
-  }
-
-  if (item.layout === 'B') {
-    return { label: 'Blocked', tone: 'moderate' };
-  }
-
-  if (item.layout === 'C') {
-    return { label: 'Needs action', tone: 'urgent' };
-  }
-
-  if (item.layout === 'D') {
-    return { label: 'Decision due', tone: 'urgent' };
-  }
-
-  if (item.layout === 'E') {
-    return {
+    fallback = { label: item.status, tone: 'status' };
+  } else if (item.layout === 'B') {
+    fallback = { label: 'Blocked', tone: 'moderate' };
+  } else if (item.layout === 'C') {
+    fallback = { label: 'Needs action', tone: 'urgent' };
+  } else if (item.layout === 'D') {
+    fallback = { label: 'Decision due', tone: 'urgent' };
+  } else if (item.layout === 'E') {
+    fallback = {
       label: item.countdown,
       tone: item.severity === 'high' ? 'urgent' : item.severity === 'medium' ? 'moderate' : 'status',
     };
+  } else {
+    fallback = { label: 'FYI', tone: 'fyi' };
   }
 
-  return { label: 'FYI', tone: 'fyi' };
+  return {
+    label: item.badgeLabel ?? fallback.label,
+    tone: item.badgeTone ?? fallback.tone,
+  };
 }
 
 function getBadgeStyles(tone: BadgeTone, isDark: boolean) {
@@ -420,6 +575,11 @@ function getBadgeStyles(tone: BadgeTone, isDark: boolean) {
       ? { backgroundColor: 'rgba(55,48,163,0.35)', color: '#A5B4FC' }
       : { backgroundColor: '#E0E7FF', color: '#3730A3' };
   }
+  if (tone === 'success') {
+    return isDark
+      ? { backgroundColor: 'rgba(22,163,74,0.22)', color: '#86EFAC' }
+      : { backgroundColor: '#DCFCE7', color: '#166534' };
+  }
   return isDark
     ? { backgroundColor: '#3F3F46', color: '#A1A1AA' }
     : { backgroundColor: '#E5E7EB', color: '#4B5563' };
@@ -432,6 +592,10 @@ function getActionLabels(item: NotificationItem) {
 
   if (item.layout === 'D') {
     return [item.primaryAction, item.secondaryAction, item.tertiaryAction];
+  }
+
+  if (item.layout === 'F') {
+    return item.actions ?? (item.viewLabel ? [item.viewLabel] : []);
   }
 
   return [];
@@ -641,14 +805,34 @@ function ExpandedNotificationContent({ item }: { item: NotificationItem }) {
   return (
     <div className="space-y-3">
       <p className="text-xs leading-5" style={{ color: descText }}>{item.description}</p>
-      {item.viewLabel && (
-        <button
-          type="button"
-          className="h-8 rounded-full px-[14px] text-xs font-medium"
-          style={{ backgroundColor: viewBtnBg, border: `1px solid ${BRAND_BLUE}`, color: BRAND_BLUE }}
-        >
-          {item.viewLabel}
-        </button>
+      {item.details && item.details.length > 0 && (
+        <div className="space-y-2">
+          {item.details.map((detail) => (
+            <div key={detail} className="rounded-lg px-3 py-2 text-xs" style={{ backgroundColor: chipBg, color: chipText }}>
+              {detail}
+            </div>
+          ))}
+        </div>
+      )}
+      {actions.length > 0 && (
+        <div className="overflow-x-auto pb-1">
+          <div className="flex min-w-max flex-nowrap gap-2">
+            {actions.map((action, index) => (
+              <button
+                key={action}
+                type="button"
+                className="h-8 shrink-0 whitespace-nowrap rounded-full px-[14px] text-xs font-medium"
+                style={{
+                  backgroundColor: index === 0 ? BRAND_BLUE : viewBtnBg,
+                  border: `1px solid ${index === 0 ? BRAND_BLUE : btnSecBdr}`,
+                  color: index === 0 ? '#FFFFFF' : btnSecText,
+                }}
+              >
+                {action}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

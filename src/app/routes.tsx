@@ -12,6 +12,7 @@ import { EmployeeHome } from "./components/EmployeeHome";
 import { B2BHome } from "./components/B2BHome";
 import { HRHome } from "./components/HRHome";
 import { CorporateHome } from "./components/CorporateHome";
+import { RcommsHome } from "./components/RcommsHome";
 
 export const router = createBrowserRouter([
   {
@@ -49,6 +50,10 @@ export const router = createBrowserRouter([
   {
     path: "/corporate-home",
     Component: CorporateHome,
+  },
+  {
+    path: "/rcomms-home",
+    Component: RcommsHome,
   },
   {
     path: "/dealeronboarding",

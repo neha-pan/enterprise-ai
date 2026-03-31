@@ -227,13 +227,6 @@ export function B2BChat({ onContextUpdate }: Props) {
       setTimeout(() => push('assistant', 'error', `Loan Account Number must be exactly 10 digits. You entered ${val.length}. Please try again.`), 250);
       return;
     }
-    if (val !== VALID_NAME_CHANGE_LAN) {
-      setTimeout(() => {
-        push('assistant', 'error', 'We could not find a matching customer record for this 10-digit Loan Account Number. Please recheck and try again.');
-      }, 250);
-      return;
-    }
-
     updateCtx({ lan: val });
     setStage('lan_processing');
 
