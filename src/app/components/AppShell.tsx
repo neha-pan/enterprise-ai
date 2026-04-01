@@ -529,8 +529,8 @@ export function AppShell({
         <div className="flex flex-1 overflow-hidden relative z-10">
           <motion.main
             className="flex-1 overflow-hidden min-w-0"
-            initial={isDesktopViewport ? { opacity: 0, x: 32 } : { opacity: 0, y: 12 }}
-            animate={{ opacity: 1, x: 0, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={contentEntryTransition}
           >
             {children}

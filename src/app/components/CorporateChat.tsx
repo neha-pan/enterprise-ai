@@ -270,9 +270,13 @@ export function CorporateChat() {
   const [kidAmberSteps, setKidAmberSteps] = useState<Step[]>([]);
   const [prefillText, setPrefillText] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = scrollContainerRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [msgs]);
 
   const push = (role: Msg['role'], type: MsgType, content = '', meta?: Msg['meta']) => {
@@ -662,7 +666,7 @@ export function CorporateChat() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 flex flex-col">
 
           {msgs.map(m => {

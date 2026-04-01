@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { motion } from 'motion/react';
 import { Sparkles, FileCheck, Fingerprint, ScanFace } from 'lucide-react';
 import { BrandMark } from './BrandMark';
 import { useAuth } from '../context/AuthContext';
@@ -8,6 +9,7 @@ export function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isFadingOut, setIsFadingOut] = useState(false);
   const [dotCount, setDotCount] = useState(0);
 
   // Animated ellipsis effect
@@ -26,14 +28,17 @@ export function Login() {
     // Simulate authentication process
     setTimeout(() => {
       login();
-      navigate('/home');
+      setIsFadingOut(true);
     }, 3000);
   };
 
   return (
-    <div 
+    <motion.div
       className="min-h-screen relative overflow-hidden"
       style={{ backgroundColor: 'var(--bg-base)' }}
+      animate={{ opacity: isFadingOut ? 0 : 1, scale: isFadingOut ? 0.97 : 1 }}
+      transition={{ duration: 0.3, ease: 'easeIn' }}
+      onAnimationComplete={() => { if (isFadingOut) navigate('/home'); }}
     >
       {/* Grid overlay */}
       <div 
@@ -152,13 +157,13 @@ export function Login() {
 
       {/* Bottom Progress Bar */}
       {isAuthenticating && (
-        <div 
+        <div
           className="absolute bottom-0 left-0 right-0 h-1"
           style={{ backgroundColor: 'var(--surface-1)' }}
         >
-          <div 
+          <div
             className="h-full animate-pulse"
-            style={{ 
+            style={{
               backgroundColor: '#10b981',
               width: '100%',
               animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
@@ -166,6 +171,6 @@ export function Login() {
           />
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
