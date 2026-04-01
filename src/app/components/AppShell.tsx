@@ -538,7 +538,7 @@ export function AppShell({
           {/* Desktop right panel — rendered directly; manages own visibility via CSS */}
           {rightPanel && (
             <motion.div
-              className="hidden xl:block shrink-0"
+              className="hidden xl:flex h-full shrink-0"
               initial={isWideDesktopViewport ? { x: 72, opacity: 0 } : false}
               animate={{ x: 0, opacity: 1 }}
               transition={rightPanelEntryTransition}

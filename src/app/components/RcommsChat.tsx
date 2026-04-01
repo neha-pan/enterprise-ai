@@ -28,7 +28,9 @@ interface Message {
     | 'disbursal_snapshot'
     | 'disbursal_followups'
     | 'product_details_loader'
-    | 'product_details_table';
+    | 'product_details_table'
+    | 'pending_approvals_loader'
+    | 'pending_approvals_table';
 }
 
 type BotStage =
@@ -39,6 +41,8 @@ type BotStage =
   | 'disbursal_followups'
   | 'product_details_loading'
   | 'product_details_table'
+  | 'pending_approvals_loading'
+  | 'pending_approvals_table'
   | 'done';
 
 const DEV_SUMMARY_QUERY = 'Show me a summary of all credit deviations raised under my region this month';
@@ -47,6 +51,24 @@ const PRODUCT_WISE_DISBURSAL_QUERY = 'Give me a product-wise breakdown of disbur
 const PRODUCT_WISE_DETAILS_QUERY = 'Show product-wise details';
 const HIGHEST_APPROVAL_QUERY = 'Which product has the highest approval rate?';
 const BUSINESS_LOAN_TAT_QUERY = 'Why are Business Loans slower on TAT?';
+const PENDING_APPROVALS_QUERY = 'How many credit deviations are currently pending my approval? Show me the oldest ones first';
+
+const PENDING_APPROVALS_DATA = [
+  {
+    caseId: 'CD-102345',
+    date: '28-Mar-2026',
+    reason: 'Income Mismatch',
+    explanation: 'ITR and salary slip mismatch of ₹1,000',
+    link: 'View in SFDC',
+  },
+  {
+    caseId: 'CD-102678',
+    date: '29-Mar-2026',
+    reason: 'Negative Area',
+    explanation: 'Customer address falls under Dharavi, marked as a negative region',
+    link: 'View in SFDC',
+  },
+];
 
 const DEVIATION_TABLE_DATA = [
   { type: 'Income mismatch',        cases: 14, share: '30%', context: 'Data capture / document mismatch' },
@@ -95,37 +117,39 @@ const PRODUCT_DETAILS_LOADER_STEPS = [
   'Compiling disbursal values by product',
 ] as const;
 
+const PENDING_APPROVALS_LOADER_STEPS = [
+  'Querying approval queue in Credit Ops DB',
+  'Fetching case details and deviation reasons',
+  'Sorting cases by oldest submission date',
+] as const;
+
 const RCOMMS_CATEGORIES: SuggestiveCategory[] = [
   {
     id: 'deviations',
-    label: 'My Deviations',
+    label: 'Open Deviations',
     Icon: ShieldCheck,
     prompts: [
       {
-        label: 'My Deviation Summary',
-        query: DEV_SUMMARY_QUERY,
+        label: 'My Pending Approvals',
+        query: 'How many credit deviations are currently pending my approval? Show me the oldest ones first',
       },
       {
-        label: 'Deviation reasons',
+        label: 'Top Deviation reasons',
         query: 'What are the top reasons for credit deviations in my region? Break it down by category',
       },
       {
-        label: 'Region-wise deviations',
+        label: 'Region wise deviations',
         query: 'Give me a region-wise breakdown of credit deviations for the current month',
       },
       {
-        label: 'Branch-wise deviations',
+        label: 'Branch wise deviations',
         query: 'Show me branch-wise deviation data — which branches have the highest deviation count this month?',
-      },
-      {
-        label: 'Pending approvals',
-        query: 'How many credit deviations are currently pending my approval? Show me the oldest ones first',
       },
     ],
   },
   {
     id: 'disbursal',
-    label: 'Disbursal Summary',
+    label: 'Approval Summary',
     Icon: Banknote,
     prompts: [
       {
@@ -156,20 +180,20 @@ const RCOMMS_CATEGORIES: SuggestiveCategory[] = [
     Icon: Users,
     prompts: [
       {
-        label: 'Check my leave balance',
-        query: 'What is my current leave balance? Show me earned, sick and casual leave days available.',
-      },
-      {
-        label: 'Apply for a leave',
-        query: 'I want to apply for leave. Can you help me check my balance and submit the request?',
+        label: 'Manage my leaves',
+        query: 'Show my leave balance',
       },
       {
         label: 'My claims',
-        query: 'Show me all my active and recently submitted expense claims and their current status',
+        query: 'I want to raise a meal claim',
+      },
+      {
+        label: 'Policy related information',
+        query: 'I have a policy related question, could you help me out',
       },
       {
         label: 'Check my incentives',
-        query: 'Show me a breakdown of my earned incentives for this quarter',
+        query: 'Show me a breakdown of my earned sales incentives for quarter 2',
       },
       {
         label: 'Check hierarchy',
@@ -214,6 +238,8 @@ export function RcommsChat() {
   const [devSteps, setDevSteps] = useState<Step[]>(() => buildSteps([...DEV_LOADER_STEPS]));
   const [disbursalSteps, setDisbursalSteps] = useState<Step[]>(() => buildSteps([...DISBURSAL_LOADER_STEPS]));
   const [productDetailsSteps, setProductDetailsSteps] = useState<Step[]>(() => buildSteps([...PRODUCT_DETAILS_LOADER_STEPS]));
+  const [pendingApprovalsSteps, setPendingApprovalsSteps] = useState<Step[]>(() => buildSteps([...PENDING_APPROVALS_LOADER_STEPS]));
+  const [actionedCases, setActionedCases] = useState<Record<string, 'approved' | 'rejected'>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -251,6 +277,8 @@ export function RcommsChat() {
         variant: 'text',
       }]);
       setBotStage('done');
+    } else if (text === PENDING_APPROVALS_QUERY) {
+      setBotStage('pending_approvals_loading');
     } else {
       setBotStage('dev_l1');
     }
@@ -258,6 +286,28 @@ export function RcommsChat() {
 
   const handleChipSelect = (chip: string) => {
     handleSendMessage(chip);
+  };
+
+  const handleCaseAction = (caseId: string, action: 'approve' | 'reject') => {
+    setActionedCases(prev => ({ ...prev, [caseId]: action === 'approve' ? 'approved' : 'rejected' }));
+    const label = action === 'approve' ? 'Approve' : 'Reject';
+    setMessages(prev => [...prev, {
+      id: `user-${Date.now()}`,
+      text: `${label} ${caseId}`,
+      type: 'user',
+      variant: 'text',
+    }]);
+    const botText = action === 'approve'
+      ? `Case ${caseId} has been approved successfully. It will now move to the disbursement queue.`
+      : `Case ${caseId} has been rejected. The applicant will be notified with the reason.`;
+    setTimeout(() => {
+      setMessages(prev => [...prev, {
+        id: `bot-${Date.now()}`,
+        text: botText,
+        type: 'assistant',
+        variant: 'text',
+      }]);
+    }, 600);
   };
 
   useEffect(() => {
@@ -512,6 +562,59 @@ export function RcommsChat() {
       setBotStage('done');
       return;
     }
+
+    // ── Flow 5: Pending Approvals Table ──────────────────────────────────
+    if (botStage === 'pending_approvals_loading') {
+      const loaderId = `bot-loader-pending-approvals-${Date.now()}`;
+      setPendingApprovalsSteps(buildSteps([...PENDING_APPROVALS_LOADER_STEPS]));
+      setComposerPlaceholder('Ask about a specific case or take action...');
+      setMessages(prev => [...prev, {
+        id: loaderId,
+        text: '',
+        type: 'assistant',
+        variant: 'pending_approvals_loader',
+      }]);
+
+      const t1 = setTimeout(() => {
+        setPendingApprovalsSteps([
+          { id: 'step-1', label: PENDING_APPROVALS_LOADER_STEPS[0], status: 'completed' },
+          { id: 'step-2', label: PENDING_APPROVALS_LOADER_STEPS[1], status: 'running' },
+          { id: 'step-3', label: PENDING_APPROVALS_LOADER_STEPS[2], status: 'pending' },
+        ]);
+      }, 700);
+
+      const t2 = setTimeout(() => {
+        setPendingApprovalsSteps([
+          { id: 'step-1', label: PENDING_APPROVALS_LOADER_STEPS[0], status: 'completed' },
+          { id: 'step-2', label: PENDING_APPROVALS_LOADER_STEPS[1], status: 'completed' },
+          { id: 'step-3', label: PENDING_APPROVALS_LOADER_STEPS[2], status: 'running' },
+        ]);
+      }, 1400);
+
+      const t3 = setTimeout(() => {
+        setMessages(prev => [
+          ...prev.filter(m => m.id !== loaderId),
+          {
+            id: `bot-${Date.now()}`,
+            text: 'You have 2 pending credit deviation approvals. Here are the oldest ones first:',
+            type: 'assistant',
+            variant: 'pending_approvals_table',
+          },
+        ]);
+        setBotStage('pending_approvals_table');
+      }, 2400);
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
+    }
+
+    if (botStage === 'pending_approvals_table') {
+      setBotStage('done');
+      return;
+    }
   }, [botStage]);
 
   const hasMessages = messages.length > 0;
@@ -687,6 +790,137 @@ export function RcommsChat() {
       return (
         <div className="w-full">
           <ProgressCard title="Preparing product-wise breakdown" steps={productDetailsSteps} />
+        </div>
+      );
+    }
+
+    if (message.variant === 'pending_approvals_loader') {
+      return (
+        <div className="w-full">
+          <ProgressCard title="Fetching your approval queue" steps={pendingApprovalsSteps} />
+        </div>
+      );
+    }
+
+    if (message.variant === 'pending_approvals_table') {
+      return (
+        <div className="flex justify-start w-full">
+          <div className="w-full flex flex-col gap-3">
+            <p className="text-base leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+              {message.text}
+            </p>
+            <div
+              className="rounded-xl overflow-hidden"
+              style={{ border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-1)' }}
+            >
+              <table className="w-full table-fixed text-xs">
+                <colgroup>
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '33%' }} />
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '14%' }} />
+                </colgroup>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-2)' }}>
+                    {['Case ID', 'Date', 'Reason', 'Explanation', 'Link', 'Action'].map(h => (
+                      <th
+                        key={h}
+                        className="px-2 py-2 text-left font-medium uppercase tracking-wide"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {PENDING_APPROVALS_DATA.map((row, i) => (
+                    <motion.tr
+                      key={row.caseId}
+                      initial={{ opacity: 0, y: 3 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.18, delay: 0.05 + i * 0.1 }}
+                      style={{ borderBottom: i < PENDING_APPROVALS_DATA.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}
+                    >
+                      <td className="px-2 py-2 font-mono font-semibold break-all" style={{ color: 'var(--text-primary)' }}>
+                        {row.caseId}
+                      </td>
+                      <td className="px-2 py-2 tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+                        {row.date}
+                      </td>
+                      <td className="px-2 py-2 font-medium leading-snug" style={{ color: 'var(--text-primary)' }}>
+                        {row.reason}
+                      </td>
+                      <td className="px-2 py-2 leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                        {row.explanation}
+                      </td>
+                      <td className="px-2 py-2">
+                        <a
+                          href="#"
+                          className="underline underline-offset-2 hover:opacity-70 transition-opacity leading-snug"
+                          style={{ color: 'var(--brand-blue)' }}
+                          onClick={e => e.preventDefault()}
+                        >
+                          {row.link}
+                        </a>
+                      </td>
+                      <td className="px-2 py-2">
+                        {actionedCases[row.caseId] ? (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                            style={actionedCases[row.caseId] === 'approved'
+                              ? { backgroundColor: '#16a34a20', color: '#16a34a' }
+                              : { backgroundColor: '#dc262620', color: '#dc2626' }}
+                          >
+                            {actionedCases[row.caseId] === 'approved' ? (
+                              <>
+                                <svg width="9" height="9" viewBox="0 0 14 14" fill="none" aria-hidden>
+                                  <path d="M2 7L5.5 10.5L12 3.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                                Approved
+                              </>
+                            ) : (
+                              <>
+                                <svg width="8" height="8" viewBox="0 0 12 12" fill="none" aria-hidden>
+                                  <path d="M1.5 1.5L10.5 10.5M10.5 1.5L1.5 10.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+                                </svg>
+                                Rejected
+                              </>
+                            )}
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              title="Approve"
+                              onClick={() => handleCaseAction(row.caseId, 'approve')}
+                              className="w-6 h-6 flex items-center justify-center rounded-full transition-all hover:opacity-80 active:scale-90"
+                              style={{ backgroundColor: '#16a34a20', color: '#16a34a' }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
+                                <path d="M2 7L5.5 10.5L12 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </button>
+                            <button
+                              title="Reject"
+                              onClick={() => handleCaseAction(row.caseId, 'reject')}
+                              className="w-6 h-6 flex items-center justify-center rounded-full transition-all hover:opacity-80 active:scale-90"
+                              style={{ backgroundColor: '#dc262620', color: '#dc2626' }}
+                            >
+                              <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+                                <path d="M1.5 1.5L10.5 10.5M10.5 1.5L1.5 10.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       );
     }

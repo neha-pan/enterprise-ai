@@ -159,7 +159,7 @@ const ATTRITION_SUMMARY = {
   annualized: '8.4%',
   mtdExits: 15,
   ytdExits: 120,
-  narrative: 'Attrition is stable and controlled; no unit is in breach.',
+  narrative: 'Attrition at your level is slightly above AOP at 8.4% vs 8.0%, driven by breaches in AI and Productization, while IT and Strategy remain stable and on target',
 };
 
 const ATTRITION_ROWS = [

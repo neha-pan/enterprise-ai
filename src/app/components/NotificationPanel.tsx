@@ -1348,7 +1348,7 @@ export function NotificationPanel({
 
   return (
     <div
-      className={`hidden xl:flex shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out ${
+      className={`hidden xl:flex h-full shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out ${
         desktopOpen ? desktopWidthClass : 'w-12'
       } ${className}`}
       style={{ backgroundColor: panelBg }}

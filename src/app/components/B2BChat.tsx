@@ -42,6 +42,8 @@ type ChatStage =
   | 'leave_loading' | 'leave_summary' | 'leave_declaration' | 'leave_decl_success'
   | 'leave_apply_loading' | 'leave_apply_confirm' | 'leave_apply_submitting' | 'leave_apply_success'
   | 'peers_loading' | 'peers_summary' | 'peers_incentive_loading' | 'peers_incentive'
+  | 'rank_loading' | 'rank_summary'
+  | 'portfolio_loading' | 'portfolio_summary'
   | 'do_intent' | 'do_upload' | 'do_mail_processing' | 'do_governance' | 'do_cancelled'
   | 'claim_bill_upload' | 'claim_bill_fetching'
   | 'claim_proof_upload' | 'claim_proof_fetching'
@@ -61,6 +63,14 @@ const isLeaveApplyIntent = (query: string) => {
   );
 };
 
+const isRankVsPeersIntent = (query: string) => {
+  const n = query.toLowerCase();
+  return (
+    n.includes('rank vs peers') || n.includes('my rank vs') ||
+    n.includes('show me my rank')
+  );
+};
+
 const isPeersIntent = (query: string) => {
   const n = query.toLowerCase();
   return (
@@ -70,6 +80,16 @@ const isPeersIntent = (query: string) => {
     (n.includes('compared') && n.includes('peers')) ||
     (n.includes('my peers') && n.includes('perform')) ||
     n.includes('my rank') || n.includes('peer comparison')
+  );
+};
+
+const isPortfolioIntent = (query: string) => {
+  const n = query.toLowerCase();
+  return (
+    n.includes('cd loan portfolio') ||
+    n.includes('portfolio performance') ||
+    (n.includes('performance') && n.includes('vs target')) ||
+    (n.includes('target') && n.includes('achievement'))
   );
 };
 
@@ -91,7 +111,7 @@ const B2B_CATEGORIES = [
     Icon: Database,
     prompts: [
       { label: 'My target vs my achievement', query: 'Show me my CD Loan portfolio performance vs target for this month' },
-      { label: 'Me and my peers', query: 'How am I performing in comparison to my peers?' },
+      { label: 'My Rank vs Peers', query: 'Show me my rank vs peers' },
       { label: 'My Approved But Not Disbursed', query: 'Show me all approved cases that are yet to be disbursed in my portfolio' },
       { label: 'dealer wise disbursement data', query: 'Show me dealer-wise disbursement data for this month, sorted by volume' },
       { label: 'My DVR appointments', query: 'Show me all my DVR appointments scheduled for this week' },
@@ -140,7 +160,8 @@ type MsgType =
   | 'name_match' | 'success' | 'upload_info'
   | 'leave_table' | 'leave_actions' | 'declaration_card' | 'leave_decl_success'
   | 'leave_apply_card' | 'leave_apply_success_card'
-  | 'peers_breakdown_card' | 'peers_incentive_card'
+  | 'target_achievement_card'
+  | 'peers_breakdown_card' | 'peers_incentive_card' | 'leaderboard_card'
   | 'do_quick_reply' | 'do_upload_card' | 'do_mail_steps' | 'do_governance_card' | 'do_cancelled_card'
   | 'claim_upload_card' | 'claim_fetch_loader' | 'claim_proof_card' | 'claim_proof_loader'
   | 'claim_bill_type_chips' | 'claim_review_card' | 'claim_submit_loader' | 'claim_success_card';
@@ -208,6 +229,8 @@ export function B2BChat({ onContextUpdate }: Props) {
   const [leaveSubmitSteps, setLeaveSubmitSteps] = useState<Step[]>([]);
   const [peersSteps, setPeersSteps]             = useState<Step[]>([]);
   const [peersIncentiveSteps, setPeersIncentiveSteps] = useState<Step[]>([]);
+  const [rankSteps, setRankSteps]               = useState<Step[]>([]);
+  const [portfolioSteps, setPortfolioSteps]     = useState<Step[]>([]);
   const [ctx, setCtx] = useState<B2BContext>({ status: 'waiting' });
   const endRef     = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -489,36 +512,77 @@ export function B2BChat({ onContextUpdate }: Props) {
     }
   };
 
-  // ── Me vs My Peers journey ────────────────────────────────────────────
+  // ── My Rank vs Peers journey ──────────────────────────────────────────
 
   const startPeersJourney = (userText: string) => {
     push('user', 'text', userText);
     updateCtx({ status: 'active' });
-    setStage('peers_loading');
+    setStage('rank_loading');
 
     const init: Step[] = [
       { id: '1', label: 'Fetching your performance data', status: 'running' },
-      { id: '2', label: 'Comparing against team peers',   status: 'pending' },
+      { id: '2', label: 'Ranking peers in your team',     status: 'pending' },
+      { id: '3', label: 'Preparing leaderboard',          status: 'pending' },
     ];
-    setPeersSteps(init);
-    push('assistant', 'progress', '', { steps: 'peers' });
+    setRankSteps(init);
+    push('assistant', 'progress', '', { steps: 'rank' });
 
-    setTimeout(() => setPeersSteps(p => p.map((s, i) => ({
-      ...s, status: (i === 0 ? 'completed' : 'running') as Step['status'],
-    }))), 900);
+    setTimeout(() => setRankSteps(p => p.map((s, i) => ({
+      ...s, status: (i === 0 ? 'completed' : i === 1 ? 'running' : 'pending') as Step['status'],
+    }))), 800);
+    setTimeout(() => setRankSteps(p => p.map((s, i) => ({
+      ...s, status: (i <= 1 ? 'completed' : 'running') as Step['status'],
+    }))), 1600);
     setTimeout(() => {
-      setPeersSteps(p => p.map(s => ({ ...s, status: 'completed' as Step['status'] })));
-    }, 1800);
-    setTimeout(() => {
-      push('assistant', 'text', "Your CD loan portfolio this quarter — Rs 128.5L achieved vs Rs 150L target, putting you at 85.7% achievement. You're ranked #3 out of 12 in your team, with Rs 45.2K in incentives accrued so far.");
+      setRankSteps(p => p.map(s => ({ ...s, status: 'completed' as Step['status'] })));
     }, 2400);
     setTimeout(() => {
-      push('assistant', 'peers_breakdown_card');
-    }, 3000);
+      push('assistant', 'text', "Here's how you stack up against your team this quarter.");
+    }, 2900);
     setTimeout(() => {
-      push('assistant', 'text', "You're Rs 21.5L short of your target. Electronics and Appliances are your two strongest categories — pushing harder there gives you the best shot at closing the gap before quarter end.");
-      setStage('peers_summary');
-    }, 3600);
+      push('assistant', 'leaderboard_card');
+    }, 3400);
+    setTimeout(() => {
+      push('assistant', 'text', "You're ₹4.6L ahead of #4 Amit Shah. Closing the gap with #2 Karan Malhotra needs ₹4.6L more — a strong push this week could move you up.");
+      setStage('rank_summary');
+      updateCtx({ status: 'completed' });
+    }, 4000);
+  };
+
+  // ── CD Loan Portfolio performance journey ─────────────────────────────
+
+  const startPortfolioJourney = (userText: string) => {
+    push('user', 'text', userText);
+    updateCtx({ status: 'active' });
+    setStage('portfolio_loading');
+
+    const init: Step[] = [
+      { id: '1', label: 'Fetching your target data',        status: 'running' },
+      { id: '2', label: 'Calculating MTD achievement',       status: 'pending' },
+      { id: '3', label: 'Building performance summary',      status: 'pending' },
+    ];
+    setPortfolioSteps(init);
+    push('assistant', 'progress', '', { steps: 'portfolio' });
+
+    setTimeout(() => setPortfolioSteps(p => p.map((s, i) => ({
+      ...s, status: (i === 0 ? 'completed' : i === 1 ? 'running' : 'pending') as Step['status'],
+    }))), 700);
+    setTimeout(() => setPortfolioSteps(p => p.map((s, i) => ({
+      ...s, status: (i <= 1 ? 'completed' : 'running') as Step['status'],
+    }))), 1400);
+    setTimeout(() => {
+      setPortfolioSteps(p => p.map(s => ({ ...s, status: 'completed' as Step['status'] })));
+    }, 2100);
+    setTimeout(() => {
+      push('assistant', 'text', "Here's your CD Loan performance summary for this month.");
+    }, 2600);
+    setTimeout(() => {
+      push('assistant', 'target_achievement_card');
+    }, 3100);
+    setTimeout(() => {
+      setStage('portfolio_summary');
+      updateCtx({ status: 'completed' });
+    }, 3700);
   };
 
   const startPeersIncentiveJourney = (userText: string) => {
@@ -715,6 +779,7 @@ export function B2BChat({ onContextUpdate }: Props) {
     setLeaveSubmitSteps([]);
     setPeersSteps([]);
     setPeersIncentiveSteps([]);
+    setPortfolioSteps([]);
     setCtx(resetCtx);
     onContextUpdate(resetCtx);
     setStage('home');
@@ -734,7 +799,12 @@ export function B2BChat({ onContextUpdate }: Props) {
       return;
     }
 
-    if (isPeersIntent(query)) {
+    if (isPortfolioIntent(query)) {
+      startPortfolioJourney(query);
+      return;
+    }
+
+    if (isRankVsPeersIntent(query) || isPeersIntent(query)) {
       startPeersJourney(query);
       return;
     }
@@ -978,12 +1048,16 @@ export function B2BChat({ onContextUpdate }: Props) {
               const isLeaveSubmit     = m.meta?.steps === 'leave_submit';
               const isPeers           = m.meta?.steps === 'peers';
               const isPeersIncentive  = m.meta?.steps === 'peers_incentive';
+              const isPortfolio       = m.meta?.steps === 'portfolio';
+              const isRank            = m.meta?.steps === 'rank';
               const steps = isLeave          ? leaveSteps
                 : isOcr            ? ocrSteps
                 : isLeaveApply     ? leaveApplySteps
                 : isLeaveSubmit    ? leaveSubmitSteps
                 : isPeers          ? peersSteps
                 : isPeersIncentive ? peersIncentiveSteps
+                : isPortfolio      ? portfolioSteps
+                : isRank           ? rankSteps
                 : procSteps;
               const title = isLeave          ? 'Fetching leave data'
                 : isOcr            ? 'Reading document'
@@ -991,6 +1065,8 @@ export function B2BChat({ onContextUpdate }: Props) {
                 : isLeaveSubmit    ? 'Submitting leave application'
                 : isPeers          ? 'Fetching performance data'
                 : isPeersIncentive ? 'Fetching incentive details'
+                : isPortfolio      ? 'Fetching performance data'
+                : isRank           ? 'Fetching leaderboard'
                 : 'Checking records';
               return (
                 <div key={m.id} className="w-full mb-2">
@@ -1219,6 +1295,55 @@ export function B2BChat({ onContextUpdate }: Props) {
               );
             }
 
+            // ── target vs achievement card ────────────────────────────
+            if (m.type === 'target_achievement_card') {
+              const rows = [
+                { label: 'Monthly Target',        value: '₹150L',      highlight: false },
+                { label: 'Achievement (MTD)',      value: '₹128.5L',    highlight: false },
+                { label: 'Achievement %',          value: '85.7%',      highlight: true  },
+                { label: 'Remaining',              value: '₹21.5L',     highlight: false },
+                { label: 'Days Left',              value: '8',          highlight: false },
+                { label: 'Required Run Rate',      value: '₹2.7L/day',  highlight: false },
+                { label: 'Pipeline (Pending DOs)', value: '₹18.2L',     highlight: false },
+              ];
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22 }}
+                  className="w-full mb-3">
+                  <div className="rounded-2xl overflow-hidden"
+                    style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+                    <div className="px-4 py-3"
+                      style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--surface-2)' }}>
+                      <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        CD Loan Target vs Achievement — Feb 2025
+                      </span>
+                    </div>
+                    {/* Column headers */}
+                    <div className="grid grid-cols-2 px-4 py-2"
+                      style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--surface-2)' }}>
+                      <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Metric</span>
+                      <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Value</span>
+                    </div>
+                    {rows.map((row, i) => (
+                      <div key={row.label}
+                        className="grid grid-cols-2 px-4 py-3"
+                        style={{
+                          borderBottom: i < rows.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                          backgroundColor: row.highlight ? 'rgba(217,119,6,0.08)' : 'transparent',
+                        }}>
+                        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
+                        <span className={`text-xs font-semibold tabular-nums${row.highlight ? ' text-amber-600 dark:text-amber-400' : ''}`}
+                          style={row.highlight ? {} : { color: 'var(--text-primary)' }}>
+                          {row.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              );
+            }
+
             // ── peers breakdown card ──────────────────────────────────
             if (m.type === 'peers_breakdown_card') {
               const categories = [
@@ -1251,6 +1376,104 @@ export function B2BChat({ onContextUpdate }: Props) {
                       style={{ borderTop: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-2)' }}>
                       <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                         Top dealers: Croma — Rs 50L &nbsp;·&nbsp; Vijay Sales — Rs 40L
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // ── leaderboard card ─────────────────────────────────────
+            if (m.type === 'leaderboard_card') {
+              const rows = [
+                { rank: 1,  name: 'Sneha Patil',      ach: '₹145.3L', pct: 96.9, isYou: false },
+                { rank: 2,  name: 'Karan Malhotra',   ach: '₹133.1L', pct: 88.7, isYou: false },
+                { rank: 3,  name: 'Rahul Shah (You)', ach: '₹128.5L', pct: 85.7, isYou: true  },
+                { rank: 4,  name: 'Amit Shah',        ach: '₹122.3L', pct: 81.5, isYou: false },
+                { rank: 5,  name: 'Priya Desai',      ach: '₹115.8L', pct: 77.2, isYou: false },
+              ];
+              const medalColor = (rank: number) =>
+                rank === 1 ? '#f59e0b' : rank === 2 ? '#94a3b8' : rank === 3 ? '#a16207' : 'var(--text-secondary)';
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="w-full mb-4">
+                  <div className="rounded-2xl overflow-hidden"
+                    style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+
+                    {/* Header */}
+                    <div className="px-4 py-3"
+                      style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-2)' }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">🏆</span>
+                        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+                          Team Leaderboard — Q1 FY26
+                        </span>
+                      </div>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                        You rank 3rd this quarter
+                      </p>
+                    </div>
+
+                    {/* Column headers */}
+                    <div className="grid grid-cols-[2.5rem_1fr_4.5rem_3.5rem] items-center px-4 py-2"
+                      style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-2)' }}>
+                      {['Rank', 'Name', 'Achievement', 'Ach %'].map(h => (
+                        <span key={h} className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>{h}</span>
+                      ))}
+                    </div>
+
+                    {/* Rows */}
+                    {rows.map((row, i) => (
+                      <div key={row.rank}
+                        className="grid grid-cols-[2.5rem_1fr_4.5rem_3.5rem] items-center px-4 py-3"
+                        style={{
+                          borderBottom: i < rows.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                          backgroundColor: row.isYou ? 'rgba(124,58,237,0.06)' : 'transparent',
+                        }}>
+                        {/* Rank badge */}
+                        <span className="text-xs font-bold tabular-nums" style={{ color: medalColor(row.rank) }}>
+                          #{row.rank}
+                        </span>
+
+                        {/* Name */}
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span
+                            className="text-xs font-medium truncate"
+                            style={{ color: row.isYou ? '#7c3aed' : 'var(--text-primary)' }}>
+                            {row.name}
+                          </span>
+                          {row.isYou && <span className="text-xs flex-shrink-0">⭐</span>}
+                        </div>
+
+                        {/* Achievement */}
+                        <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                          {row.ach}
+                        </span>
+
+                        {/* Ach% with mini bar */}
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold tabular-nums" style={{ color: row.isYou ? '#7c3aed' : 'var(--text-primary)' }}>
+                            {row.pct}%
+                          </span>
+                          <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--border-subtle)' }}>
+                            <div className="h-full rounded-full"
+                              style={{
+                                width: `${row.pct}%`,
+                                backgroundColor: row.isYou ? '#7c3aed' : 'var(--text-secondary)',
+                                opacity: row.isYou ? 1 : 0.45,
+                              }} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Footer */}
+                    <div className="px-4 py-2.5"
+                      style={{ borderTop: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-2)' }}>
+                      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        Showing top 5 of 12 members · Q1 FY26
                       </span>
                     </div>
                   </div>
@@ -2124,7 +2347,7 @@ export function B2BChat({ onContextUpdate }: Props) {
             return null;
           })}
 
-          {stage === 'peers_incentive' && (
+          {(stage === 'peers_incentive' || stage === 'rank_summary') && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
               className="flex justify-center mt-2 mb-4">
@@ -2154,6 +2377,8 @@ export function B2BChat({ onContextUpdate }: Props) {
               stage === 'leave_summary'          ? 'Choose an option above' :
               stage === 'leave_declaration'      ? 'Reply using the options above' :
               stage === 'peers_summary'           ? 'Ask about your incentives or performance…' :
+              stage === 'rank_summary'            ? 'What would you like to do next?' :
+              stage === 'portfolio_summary'       ? 'What would you like to do next?' :
               stage === 'leave_apply_confirm'    ? 'Confirm or cancel above' :
               stage === 'leave_apply_submitting' ? 'Submitting…' :
               stage === 'do_intent'           ? 'Choose an option above' :
@@ -2175,7 +2400,9 @@ export function B2BChat({ onContextUpdate }: Props) {
               stage !== 'do_cancelled' &&
               stage !== 'claim_submitted' &&
               stage !== 'leave_apply_success' &&
-              stage !== 'peers_summary'
+              stage !== 'peers_summary' &&
+              stage !== 'rank_summary' &&
+              stage !== 'portfolio_summary'
             }
             onSendMessage={handleChatTraySend}
             onNewConversation={handleStartAnotherRequest}
