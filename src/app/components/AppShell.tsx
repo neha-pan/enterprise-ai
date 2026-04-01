@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router';
+import { useAuth } from '../context/AuthContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -98,6 +100,14 @@ export function AppShell({
 }: AppShellProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+  const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
+  const [isWideDesktopViewport, setIsWideDesktopViewport] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1280 : true
+  );
 
   // Mobile sidebar overlay open/closed
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -107,6 +117,7 @@ export function AppShell({
   const [rightOpen, setRightOpen] = useState(false);
   // User popup menu
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Conversations with mutable starred state
@@ -120,8 +131,13 @@ export function AppShell({
   // Close mobile sidebar when viewport grows to desktop
   useEffect(() => {
     const handler = () => {
-      if (window.innerWidth >= 1024) setSidebarOpen(false);
+      const nextIsDesktop = window.innerWidth >= 1024;
+      const nextIsWideDesktop = window.innerWidth >= 1280;
+      setIsDesktopViewport(nextIsDesktop);
+      setIsWideDesktopViewport(nextIsWideDesktop);
+      if (nextIsDesktop) setSidebarOpen(false);
     };
+    handler();
     window.addEventListener('resize', handler);
     return () => window.removeEventListener('resize', handler);
   }, []);
@@ -159,6 +175,10 @@ export function AppShell({
   // Whether to show text labels in sidebar (always on mobile overlay, controlled by state on desktop)
   // We use a CSS trick: the desktop sidebar width class controls visibility via overflow+opacity
   const showLabels = sidebarExpanded;
+  const shellEntryTransition = { duration: 0.34, ease: [0.22, 1, 0.36, 1] as const };
+  const leftPanelEntryTransition = { duration: 0.42, delay: 0.08, ease: [0.22, 1, 0.36, 1] as const };
+  const contentEntryTransition = { duration: 0.4, delay: 0.12, ease: [0.22, 1, 0.36, 1] as const };
+  const rightPanelEntryTransition = { duration: 0.42, delay: 0.18, ease: [0.22, 1, 0.36, 1] as const };
 
   // ── Sidebar inner content (shared between mobile overlay and desktop) ───────
 
@@ -366,7 +386,7 @@ export function AppShell({
             <button
               className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm hover:opacity-70 transition-opacity"
               style={{ color: 'var(--status-danger)' }}
-              onClick={() => setShowUserMenu(false)}
+              onClick={() => { setShowUserMenu(false); setIsSigningOut(true); }}
             >
               <LogOut size={14} /> Sign out
             </button>
@@ -404,7 +424,14 @@ export function AppShell({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden font-sans" style={{ backgroundColor: 'var(--bg-base)' }}>
+    <motion.div
+      className="flex h-screen overflow-hidden font-sans"
+      style={{ backgroundColor: 'var(--bg-base)' }}
+      initial={{ opacity: 0, scale: 0.985 }}
+      animate={{ opacity: isSigningOut ? 0 : 1, scale: isSigningOut ? 0.97 : 1 }}
+      transition={isSigningOut ? { duration: 0.3, ease: 'easeIn' } : shellEntryTransition}
+      onAnimationComplete={() => { if (isSigningOut) { logout(); navigate('/'); } }}
+    >
 
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
@@ -415,7 +442,7 @@ export function AppShell({
       )}
 
       {/* ── LEFT SIDEBAR ─────────────────────────────────────────────────────── */}
-      <aside
+      <motion.aside
         className={[
           'fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto',
           'flex flex-col overflow-hidden shrink-0',
@@ -427,9 +454,12 @@ export function AppShell({
           backgroundColor: 'var(--surface-1)',
           borderRight: '1px solid var(--border-subtle)',
         }}
+        initial={isDesktopViewport ? { x: -72, opacity: 0 } : false}
+        animate={{ x: 0, opacity: 1 }}
+        transition={leftPanelEntryTransition}
       >
         {sidebarInner}
-      </aside>
+      </motion.aside>
 
       {/* ── RIGHT SECTION (main content area) ───────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 relative">
@@ -438,8 +468,8 @@ export function AppShell({
         <div
           className="absolute inset-0 pointer-events-none z-0 dark:hidden"
           style={{
-            backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
+            backgroundImage: 'linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px)',
+            backgroundSize: '56px 56px',
             maskImage: 'radial-gradient(circle at center, black 40%, transparent 100%)',
           }}
         />
@@ -447,8 +477,8 @@ export function AppShell({
         <div
           className="absolute inset-0 pointer-events-none z-0 hidden dark:block"
           style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)',
+            backgroundSize: '56px 56px',
             maskImage: 'radial-gradient(circle at center, black 40%, transparent 100%)',
           }}
         />
@@ -497,11 +527,25 @@ export function AppShell({
 
         {/* Content row: centre + optional right panel */}
         <div className="flex flex-1 overflow-hidden relative z-10">
-          <main className="flex-1 overflow-hidden min-w-0">
+          <motion.main
+            className="flex-1 overflow-hidden min-w-0"
+            initial={isDesktopViewport ? { opacity: 0, x: 32 } : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            transition={contentEntryTransition}
+          >
             {children}
-          </main>
+          </motion.main>
           {/* Desktop right panel — rendered directly; manages own visibility via CSS */}
-          {rightPanel}
+          {rightPanel && (
+            <motion.div
+              className="hidden xl:block shrink-0"
+              initial={isWideDesktopViewport ? { x: 72, opacity: 0 } : false}
+              animate={{ x: 0, opacity: 1 }}
+              transition={rightPanelEntryTransition}
+            >
+              {rightPanel}
+            </motion.div>
+          )}
         </div>
       </div>
 
@@ -535,6 +579,6 @@ export function AppShell({
         .sidebar-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
         .sidebar-scroll:hover::-webkit-scrollbar-thumb { background: var(--border-subtle); }
       `}</style>
-    </div>
+    </motion.div>
   );
 }

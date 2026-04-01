@@ -57,7 +57,6 @@ const DEVIATION_TABLE_DATA = [
 ];
 
 const DISBURSAL_FOLLOWUPS = [
-  PRODUCT_WISE_DETAILS_QUERY,
   HIGHEST_APPROVAL_QUERY,
   BUSINESS_LOAN_TAT_QUERY,
 ] as const;
@@ -273,36 +272,55 @@ export function RcommsChat() {
           type: 'assistant',
           variant: 'text',
         }]);
-        setBotStage('dev_l2');
+        setBotStage('dev_progress');
       }, 400);
       return () => clearTimeout(t);
     }
 
-    if (botStage === 'dev_l2') {
+    if (botStage === 'dev_progress') {
       const loaderId = 'bot-loader-dev';
-      const t = setTimeout(() => {
-        setMessages(prev => [...prev, {
-          id: loaderId,
-          text: 'Pulling up your deviation data...',
-          type: 'assistant',
-          isLoading: true,
-          variant: 'text',
-        }]);
-        const t2 = setTimeout(() => {
-          setMessages(prev => [
-            ...prev.filter(m => m.id !== loaderId),
-            {
-              id: `bot-${Date.now()}`,
-              text: 'Here are your deviations',
-              type: 'assistant',
-              variant: 'summary_card',
-            },
-          ]);
-          setBotStage('dev_l3');
-        }, 3500);
-        return () => clearTimeout(t2);
-      }, 500);
-      return () => clearTimeout(t);
+      setDevSteps(buildSteps([...DEV_LOADER_STEPS]));
+      setMessages(prev => [...prev, {
+        id: loaderId,
+        text: '',
+        type: 'assistant',
+        variant: 'dev_loader',
+      }]);
+
+      const t1 = setTimeout(() => {
+        setDevSteps([
+          { id: 'step-1', label: DEV_LOADER_STEPS[0], status: 'completed' },
+          { id: 'step-2', label: DEV_LOADER_STEPS[1], status: 'running' },
+          { id: 'step-3', label: DEV_LOADER_STEPS[2], status: 'pending' },
+        ]);
+      }, 700);
+
+      const t2 = setTimeout(() => {
+        setDevSteps([
+          { id: 'step-1', label: DEV_LOADER_STEPS[0], status: 'completed' },
+          { id: 'step-2', label: DEV_LOADER_STEPS[1], status: 'completed' },
+          { id: 'step-3', label: DEV_LOADER_STEPS[2], status: 'running' },
+        ]);
+      }, 1400);
+
+      const t3 = setTimeout(() => {
+        setMessages(prev => [
+          ...prev.filter(m => m.id !== loaderId),
+          {
+            id: `bot-${Date.now()}`,
+            text: 'Here are your deviations',
+            type: 'assistant',
+            variant: 'summary_card',
+          },
+        ]);
+        setBotStage('dev_l3');
+      }, 2400);
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
     }
 
     if (botStage === 'dev_l3') {
@@ -404,18 +422,28 @@ export function RcommsChat() {
           ...prev.filter(m => m.id !== loaderId),
           {
             id: `bot-${Date.now()}`,
-            text: 'Here is the MTD product snapshot.',
+            text: 'Product Snapshot (MTD)',
             type: 'assistant',
             variant: 'disbursal_snapshot',
           },
         ]);
-        setBotStage('disbursal_followups');
       }, 2400);
+
+      const t4 = setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: `bot-${Date.now()}`,
+          text: 'Personal Loans are leading disbursal volumes, while Business Loans are trailing on approval rate and turnaround efficiency.',
+          type: 'assistant',
+          variant: 'product_details_table',
+        }]);
+        setBotStage('disbursal_followups');
+      }, 2800);
 
       return () => {
         clearTimeout(t1);
         clearTimeout(t2);
         clearTimeout(t3);
+        clearTimeout(t4);
       };
     }
 
@@ -559,6 +587,14 @@ export function RcommsChat() {
       );
     }
 
+    if (message.variant === 'dev_loader') {
+      return (
+        <div className="w-full">
+          <ProgressCard title="Checking deviation data" steps={devSteps} />
+        </div>
+      );
+    }
+
     if (message.variant === 'disbursal_loader') {
       return (
         <div className="w-full">
@@ -569,40 +605,9 @@ export function RcommsChat() {
 
     if (message.variant === 'disbursal_snapshot') {
       return (
-        <div className="flex justify-start w-full">
-          <div className="max-w-[85%] flex flex-col gap-3">
-            <p className="text-base leading-relaxed" style={{ color: 'var(--text-primary)' }}>
-              {message.text}
-            </p>
-            <div
-              className="rounded-xl overflow-hidden"
-              style={{ border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-1)' }}
-            >
-              <div
-                className="px-4 py-3"
-                style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-2)' }}
-              >
-                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
-                  Product Snapshot (MTD)
-                </p>
-              </div>
-              {[
-                { label: 'Total disbursal', value: '₹68.5 Cr' },
-                { label: 'Total cases disbursed', value: '940' },
-                { label: 'Top product', value: 'Personal Loans' },
-                { label: 'Slowest product (TAT)', value: 'Business Loans' },
-              ].map((row, i, arr) => (
-                <div
-                  key={row.label}
-                  className="flex items-center justify-between gap-6 px-4 py-3"
-                  style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}
-                >
-                  <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
-                  <span className="text-sm font-semibold tabular-nums text-right" style={{ color: 'var(--text-primary)' }}>{row.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="flex flex-col gap-1">
+          <BotMessageText text="Total disbursal ₹68.5 Cr" />
+          <BotMessageText text="Total cases disbursed 940" />
         </div>
       );
     }

@@ -12,7 +12,7 @@ import { ChatComposer } from './ChatComposer';
 import { NextActionsCard, type NextActionItem } from './NextActionsCard';
 import { RoleBadge } from './RoleBadge';
 
-const NAME_CHANGE_PROMPT = 'I want to change my customers name';
+const NAME_CHANGE_PROMPT = "I need to correct my customer's name on their loan account";
 const normalizeIntent = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const isNameChangeIntent = (query: string) => {
   const normalized = normalizeIntent(query);
@@ -20,7 +20,8 @@ const isNameChangeIntent = (query: string) => {
     normalized === normalizeIntent(NAME_CHANGE_PROMPT) ||
     normalized.includes('name change') ||
     (normalized.includes('change') && normalized.includes('customer') && normalized.includes('name')) ||
-    (normalized.includes('update') && normalized.includes('customer') && normalized.includes('name'))
+    (normalized.includes('update') && normalized.includes('customer') && normalized.includes('name')) ||
+    (normalized.includes('correct') && normalized.includes('customer') && normalized.includes('name'))
   );
 };
 
@@ -39,6 +40,8 @@ type ChatStage =
   | 'name_found' | 'doc_capturing' | 'ocr_processing'
   | 'name_confirm' | 'success' | 'generic'
   | 'leave_loading' | 'leave_summary' | 'leave_declaration' | 'leave_decl_success'
+  | 'leave_apply_loading' | 'leave_apply_confirm' | 'leave_apply_submitting' | 'leave_apply_success'
+  | 'peers_loading' | 'peers_summary' | 'peers_incentive_loading' | 'peers_incentive'
   | 'do_intent' | 'do_upload' | 'do_mail_processing' | 'do_governance' | 'do_cancelled'
   | 'claim_bill_upload' | 'claim_bill_fetching'
   | 'claim_proof_upload' | 'claim_proof_fetching'
@@ -46,9 +49,66 @@ type ChatStage =
 
 const CLAIM_TRIGGER = 'I want to raise a meal claim';
 
+const isLeaveApplyIntent = (query: string) => {
+  const n = query.toLowerCase();
+  return (
+    n.includes('apply') && (n.includes('leave') || n.includes('holiday') || n.includes('day off')) ||
+    n.includes('take a leave') || n.includes('take leave') ||
+    n.includes('apply for leave') || n.includes('apply for a leave') ||
+    n.includes('apply casual') || n.includes('half day') ||
+    (n.includes('marriage') && (n.includes('leave') || n.includes('apply') || n.includes('half'))) ||
+    (n.includes('attend') && n.includes('leave'))
+  );
+};
+
+const isPeersIntent = (query: string) => {
+  const n = query.toLowerCase();
+  return (
+    n.includes('me vs my peers') || n.includes('vs my peers') || n.includes('vs peers') ||
+    (n.includes('how am i') && n.includes('performing')) ||
+    (n.includes('comparison') && n.includes('peers')) ||
+    (n.includes('compared') && n.includes('peers')) ||
+    (n.includes('my peers') && n.includes('perform')) ||
+    n.includes('my rank') || n.includes('peer comparison')
+  );
+};
+
+const isIncentiveIntent = (query: string) => {
+  const n = query.toLowerCase();
+  return (
+    n.includes('incentive') || n.includes('how much will i get') ||
+    n.includes('how much') || n.includes('payout') || n.includes('bonus') ||
+    n.includes('earnings') || n.includes('how much will') || n.includes('kitna')
+  );
+};
+
 // ── Suggestive action categories ───────────────────────────────────────────
 
 const B2B_CATEGORIES = [
+  {
+    id: 'data',
+    label: 'My Reports',
+    Icon: Database,
+    prompts: [
+      { label: 'My target vs my achievement', query: 'Show me my CD Loan portfolio performance vs target for this month' },
+      { label: 'Me and my peers', query: 'How am I performing in comparison to my peers?' },
+      { label: 'My Approved But Not Disbursed', query: 'Show me all approved cases that are yet to be disbursed in my portfolio' },
+      { label: 'dealer wise disbursement data', query: 'Show me dealer-wise disbursement data for this month, sorted by volume' },
+      { label: 'My DVR appointments', query: 'Show me all my DVR appointments scheduled for this week' },
+    ],
+  },
+  {
+    id: 'sales',
+    label: 'Sales helpline',
+    Icon: Headphones,
+    prompts: [
+      { label: 'Correct customer name', query: NAME_CHANGE_PROMPT },
+      { label: 'DO (Delivery Order) governance', query: 'Can you explain the DO governance process?' },
+      { label: 'Clarification', query: 'I need clarification on a policy or process. Can you help me understand the correct guidelines?' },
+      { label: 'System or Technical issue', query: "I'm facing a system or technical issue. Can you help me log this and connect me with the right support team?" },
+      { label: 'Other process related', query: 'I have a process-related query that needs attention. Can you help me find the right information or escalate it to the correct team?' },
+    ],
+  },
   {
     id: 'hr',
     label: 'HR',
@@ -59,30 +119,6 @@ const B2B_CATEGORIES = [
       { label: 'Policy related information', query: 'I have a policy related question, could you help me out' },
       { label: 'Check my incentives', query: 'Show me a breakdown of my earned sales incentives for quater 2' },
       { label: 'Check hierarchy', query: 'Show me the complete reporting structure for my department' },
-    ],
-  },
-  {
-    id: 'sales',
-    label: 'Sales helpline',
-    Icon: Headphones,
-    prompts: [
-      { label: 'Change customer name', query: NAME_CHANGE_PROMPT },
-      { label: 'DO (Delivery Order) governance', query: 'Can you explain the DO governance process?' },
-      { label: 'Clarification', query: 'I need clarification on a policy or process. Can you help me understand the correct guidelines?' },
-      { label: 'System or Technical issue', query: "I'm facing a system or technical issue. Can you help me log this and connect me with the right support team?" },
-      { label: 'Other process related', query: 'I have a process-related query that needs attention. Can you help me find the right information or escalate it to the correct team?' },
-    ],
-  },
-  {
-    id: 'data',
-    label: 'Data',
-    Icon: Database,
-    prompts: [
-      { label: 'Portfolio performance this quarter', query: 'Can you pull up the portfolio performance report for my region for this quarter?' },
-      { label: 'Delinquency risk analysis', query: 'Show me the delinquency analysis for my bucket — which accounts are at the highest risk right now?' },
-      { label: 'EMI collection trend (last 30 days)', query: 'What is the EMI collection trend over the last 30 days for my assigned accounts?' },
-      { label: 'Dealer-wise disbursement data', query: 'Show me dealer-wise disbursement data for this month, sorted by volume.' },
-      { label: 'NPA accounts summary', query: 'Give me an NPA summary for my portfolio. Which accounts have crossed the 90-day overdue threshold?' },
     ],
   },
   {
@@ -103,6 +139,8 @@ type MsgType =
   | 'text' | 'error' | 'progress' | 'doc_select' | 'capture'
   | 'name_match' | 'success' | 'upload_info'
   | 'leave_table' | 'leave_actions' | 'declaration_card' | 'leave_decl_success'
+  | 'leave_apply_card' | 'leave_apply_success_card'
+  | 'peers_breakdown_card' | 'peers_incentive_card'
   | 'do_quick_reply' | 'do_upload_card' | 'do_mail_steps' | 'do_governance_card' | 'do_cancelled_card'
   | 'claim_upload_card' | 'claim_fetch_loader' | 'claim_proof_card' | 'claim_proof_loader'
   | 'claim_bill_type_chips' | 'claim_review_card' | 'claim_submit_loader' | 'claim_success_card';
@@ -166,6 +204,10 @@ export function B2BChat({ onContextUpdate }: Props) {
   const [claimFetchSteps, setClaimFetchSteps]   = useState<Step[]>([]);
   const [claimProofSteps, setClaimProofSteps]   = useState<Step[]>([]);
   const [claimSubmitSteps, setClaimSubmitSteps] = useState<Step[]>([]);
+  const [leaveApplySteps, setLeaveApplySteps]   = useState<Step[]>([]);
+  const [leaveSubmitSteps, setLeaveSubmitSteps] = useState<Step[]>([]);
+  const [peersSteps, setPeersSteps]             = useState<Step[]>([]);
+  const [peersIncentiveSteps, setPeersIncentiveSteps] = useState<Step[]>([]);
   const [ctx, setCtx] = useState<B2BContext>({ status: 'waiting' });
   const endRef     = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -251,7 +293,7 @@ export function B2BChat({ onContextUpdate }: Props) {
     setTimeout(() => {
       push('assistant', 'text', `${CURRENT_NAME} is the customer's current name in the system.`);
       push('assistant', 'upload_info');
-      push('assistant', 'capture', '', { doc: 'Supporting document (PDF)' });
+      push('assistant', 'capture', '', { doc: 'Supporting document format: PDF, JPEG, PNG' });
       setStage('doc_capturing');
     }, 2900);
   };
@@ -261,12 +303,6 @@ export function B2BChat({ onContextUpdate }: Props) {
     if (!file) return;
     e.target.value = '';
     const isClaimStage = stage === 'claim_bill_upload' || stage === 'claim_proof_upload';
-    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-    const isImage = file.type.startsWith('image/');
-    if (!isPdf && !(isClaimStage && isImage)) {
-      push('assistant', 'error', 'Only PDF files are supported for this request. Please upload a PDF document.');
-      return;
-    }
     if (file.size > 5 * 1024 * 1024) {
       push('assistant', 'error', 'File exceeds the 5 MB limit. Please upload a smaller file.');
       return;
@@ -322,7 +358,7 @@ export function B2BChat({ onContextUpdate }: Props) {
     } else {
       setTimeout(() => {
         push('assistant', 'text', 'Please upload another document for verification.');
-        push('assistant', 'capture', '', { doc: 'Supporting document (PDF)' });
+        push('assistant', 'capture', '', { doc: 'Supporting document format: PDF, JPEG, PNG' });
         setStage('doc_capturing');
         updateCtx({ pendingName: undefined });
       }, 350);
@@ -360,6 +396,65 @@ export function B2BChat({ onContextUpdate }: Props) {
     }, 2900);
   };
 
+  // ── Leave application journey ──────────────────────────────────────────
+
+  const startLeaveApplyJourney = (userText: string) => {
+    push('user', 'text', userText);
+    updateCtx({ status: 'active' });
+    setStage('leave_apply_loading');
+
+    const init: Step[] = [
+      { id: '1', label: 'Analysing your request',      status: 'running' },
+      { id: '2', label: 'Checking leave balance',       status: 'pending' },
+      { id: '3', label: 'Preparing leave application',  status: 'pending' },
+    ];
+    setLeaveApplySteps(init);
+    push('assistant', 'progress', '', { steps: 'leave_apply' });
+
+    setTimeout(() => setLeaveApplySteps(p => p.map((s, i) => ({
+      ...s, status: (i === 0 ? 'completed' : i === 1 ? 'running' : 'pending') as Step['status'],
+    }))), 800);
+    setTimeout(() => setLeaveApplySteps(p => p.map((s, i) => ({
+      ...s, status: (i <= 1 ? 'completed' : 'running') as Step['status'],
+    }))), 1600);
+    setTimeout(() => {
+      setLeaveApplySteps(p => p.map(s => ({ ...s, status: 'completed' as Step['status'] })));
+    }, 2400);
+    setTimeout(() => {
+      push('assistant', 'text', "Got it! Here's the leave application I've prepared based on your request:");
+      push('assistant', 'leave_apply_card');
+      setStage('leave_apply_confirm');
+    }, 2900);
+  };
+
+  const handleLeaveApplyAction = (confirmed: boolean) => {
+    if (stage !== 'leave_apply_confirm') return;
+    push('user', 'text', confirmed ? 'Confirm' : 'Cancel');
+    if (!confirmed) {
+      setTimeout(() => {
+        push('assistant', 'text', 'No problem — your leave request has been discarded.');
+        setStage('generic');
+      }, 350);
+      return;
+    }
+
+    setStage('leave_apply_submitting');
+    const submitInit: Step[] = [
+      { id: '1', label: 'Submitting leave application', status: 'running' },
+    ];
+    setLeaveSubmitSteps(submitInit);
+    push('assistant', 'progress', '', { steps: 'leave_submit' });
+
+    setTimeout(() => {
+      setLeaveSubmitSteps(p => p.map(s => ({ ...s, status: 'completed' as Step['status'] })));
+    }, 1000);
+    setTimeout(() => {
+      push('assistant', 'leave_apply_success_card');
+      setStage('leave_apply_success');
+      updateCtx({ status: 'completed' });
+    }, 1600);
+  };
+
   const handleLeaveAction = (action: string) => {
     if (stage !== 'leave_summary') return;
     if (action === 'declaration') {
@@ -392,6 +487,59 @@ export function B2BChat({ onContextUpdate }: Props) {
         setStage('generic');
       }, 350);
     }
+  };
+
+  // ── Me vs My Peers journey ────────────────────────────────────────────
+
+  const startPeersJourney = (userText: string) => {
+    push('user', 'text', userText);
+    updateCtx({ status: 'active' });
+    setStage('peers_loading');
+
+    const init: Step[] = [
+      { id: '1', label: 'Fetching your performance data', status: 'running' },
+      { id: '2', label: 'Comparing against team peers',   status: 'pending' },
+    ];
+    setPeersSteps(init);
+    push('assistant', 'progress', '', { steps: 'peers' });
+
+    setTimeout(() => setPeersSteps(p => p.map((s, i) => ({
+      ...s, status: (i === 0 ? 'completed' : 'running') as Step['status'],
+    }))), 900);
+    setTimeout(() => {
+      setPeersSteps(p => p.map(s => ({ ...s, status: 'completed' as Step['status'] })));
+    }, 1800);
+    setTimeout(() => {
+      push('assistant', 'text', "Your CD loan portfolio this quarter — Rs 128.5L achieved vs Rs 150L target, putting you at 85.7% achievement. You're ranked #3 out of 12 in your team, with Rs 45.2K in incentives accrued so far.");
+    }, 2400);
+    setTimeout(() => {
+      push('assistant', 'peers_breakdown_card');
+    }, 3000);
+    setTimeout(() => {
+      push('assistant', 'text', "You're Rs 21.5L short of your target. Electronics and Appliances are your two strongest categories — pushing harder there gives you the best shot at closing the gap before quarter end.");
+      setStage('peers_summary');
+    }, 3600);
+  };
+
+  const startPeersIncentiveJourney = (userText: string) => {
+    if (stage !== 'peers_summary') return;
+    push('user', 'text', userText);
+    setStage('peers_incentive_loading');
+
+    const init: Step[] = [
+      { id: '1', label: 'Fetching incentive details', status: 'running' },
+    ];
+    setPeersIncentiveSteps(init);
+    push('assistant', 'progress', '', { steps: 'peers_incentive' });
+
+    setTimeout(() => {
+      setPeersIncentiveSteps(p => p.map(s => ({ ...s, status: 'completed' as Step['status'] })));
+    }, 900);
+    setTimeout(() => {
+      push('assistant', 'peers_incentive_card');
+      setStage('peers_incentive');
+      updateCtx({ status: 'completed' });
+    }, 1500);
   };
 
   // ── DO cancellation journey ────────────────────────────────────────────
@@ -563,6 +711,10 @@ export function B2BChat({ onContextUpdate }: Props) {
     setClaimFetchSteps([]);
     setClaimProofSteps([]);
     setClaimSubmitSteps([]);
+    setLeaveApplySteps([]);
+    setLeaveSubmitSteps([]);
+    setPeersSteps([]);
+    setPeersIncentiveSteps([]);
     setCtx(resetCtx);
     onContextUpdate(resetCtx);
     setStage('home');
@@ -579,6 +731,16 @@ export function B2BChat({ onContextUpdate }: Props) {
   const handleIntentSend = (query: string) => {
     if (isNameChangeIntent(query)) {
       startJourney(query);
+      return;
+    }
+
+    if (isPeersIntent(query)) {
+      startPeersJourney(query);
+      return;
+    }
+
+    if (isLeaveApplyIntent(query)) {
+      startLeaveApplyJourney(query);
       return;
     }
 
@@ -623,7 +785,19 @@ export function B2BChat({ onContextUpdate }: Props) {
       return;
     }
 
-    if (stage === 'generic' || stage === 'success' || stage === 'leave_decl_success' || stage === 'claim_submitted') {
+    if (stage === 'peers_summary') {
+      if (isIncentiveIntent(query)) {
+        startPeersIncentiveJourney(query);
+      } else {
+        push('user', 'text', query);
+        setTimeout(() => {
+          push('assistant', 'text', "I'll look into that for you. This view is coming soon.");
+        }, 400);
+      }
+      return;
+    }
+
+    if (stage === 'generic' || stage === 'success' || stage === 'leave_decl_success' || stage === 'claim_submitted' || stage === 'leave_apply_success') {
       handleIntentSend(query);
     }
   };
@@ -766,7 +940,7 @@ export function B2BChat({ onContextUpdate }: Props) {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".pdf,application/pdf,image/*"
+        accept="*/*"
         className="hidden"
         onChange={handleFileChange}
       />
@@ -798,10 +972,26 @@ export function B2BChat({ onContextUpdate }: Props) {
 
             // ── progress card ─────────────────────────────────────────
             if (m.type === 'progress') {
-              const isLeave = m.meta?.steps === 'leave';
-              const isOcr   = m.meta?.steps === 'ocr';
-              const steps = isLeave ? leaveSteps : isOcr ? ocrSteps : procSteps;
-              const title = isLeave ? 'Fetching leave data' : isOcr ? 'Reading document' : 'Checking records';
+              const isLeave           = m.meta?.steps === 'leave';
+              const isOcr             = m.meta?.steps === 'ocr';
+              const isLeaveApply      = m.meta?.steps === 'leave_apply';
+              const isLeaveSubmit     = m.meta?.steps === 'leave_submit';
+              const isPeers           = m.meta?.steps === 'peers';
+              const isPeersIncentive  = m.meta?.steps === 'peers_incentive';
+              const steps = isLeave          ? leaveSteps
+                : isOcr            ? ocrSteps
+                : isLeaveApply     ? leaveApplySteps
+                : isLeaveSubmit    ? leaveSubmitSteps
+                : isPeers          ? peersSteps
+                : isPeersIncentive ? peersIncentiveSteps
+                : procSteps;
+              const title = isLeave          ? 'Fetching leave data'
+                : isOcr            ? 'Reading document'
+                : isLeaveApply     ? 'Preparing leave application'
+                : isLeaveSubmit    ? 'Submitting leave application'
+                : isPeers          ? 'Fetching performance data'
+                : isPeersIncentive ? 'Fetching incentive details'
+                : 'Checking records';
               return (
                 <div key={m.id} className="w-full mb-2">
                   <ProgressCard title={title} steps={steps} />
@@ -815,11 +1005,11 @@ export function B2BChat({ onContextUpdate }: Props) {
                 <motion.div key={m.id}
                   initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
                   className="flex w-full justify-start mb-4">
-                  <div className="max-w-[85%] sm:max-w-[70%] rounded-2xl rounded-bl-none px-5 py-3 shadow-sm text-sm"
+                  <div className="max-w-[85%] sm:max-w-[70%] rounded-2xl rounded-bl-none px-5 py-3 shadow-sm text-base"
                     style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}>
-                    <p className="mb-2">Please upload a supporting PDF document using one of the accepted proofs below:</p>
+                    <p className="mb-2">Please provide a valid OVD</p>
                     <ul className="space-y-1 pl-1">
-                      {['Updated Aadhaar', 'PAN', 'Gazette notification'].map(doc => (
+                      {['Aadhar', 'Passport', 'Driving licence', 'Voter ID', 'MNREGA card'].map(doc => (
                         <li key={doc} className="flex items-center gap-2">
                           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: 'var(--text-secondary)' }} />
                           {doc}
@@ -990,16 +1180,255 @@ export function B2BChat({ onContextUpdate }: Props) {
                       </div>
                     </div>
 
+                    <div className="rounded-xl p-4 mb-4" style={{ backgroundColor: 'var(--surface-2)' }}>
+                      <p className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>
+                        Document verified and name updated across all systems.
+                      </p>
+                      <div className="flex flex-col">
+                        {[
+                          { label: 'Document Received', sub: 'Aadhaar Card — PDF verified' },
+                          { label: 'Name Validated',    sub: 'Passed' },
+                          { label: 'CRM Updated',       sub: 'Auto-synced' },
+                          { label: 'GCD Updated',       sub: 'Complete' },
+                        ].map((item, i, arr) => (
+                          <div key={item.label} className="flex gap-3">
+                            <div className="flex flex-col items-center" style={{ width: '14px' }}>
+                              <div className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: 'var(--status-success)' }} />
+                              {i < arr.length - 1 && (
+                                <div className="flex-1 w-px mt-1" style={{ backgroundColor: 'var(--status-success)', opacity: 0.25 }} />
+                              )}
+                            </div>
+                            <div className={i < arr.length - 1 ? 'pb-3' : ''}>
+                              <p className="text-xs font-semibold leading-tight" style={{ color: 'var(--status-success)' }}>{item.label}</p>
+                              <p className="text-xs leading-tight mt-0.5" style={{ color: 'var(--text-secondary)' }}>{item.sub}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleStartAnotherRequest}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80 active:scale-[0.97]"
+                      style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}>
+                      <RefreshCw size={14} style={{ color: 'var(--text-secondary)' }} />
+                      Start new chat
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // ── peers breakdown card ──────────────────────────────────
+            if (m.type === 'peers_breakdown_card') {
+              const categories = [
+                { label: 'Electronics',     value: 'Rs 48.2L' },
+                { label: 'Home Appliances', value: 'Rs 38.5L' },
+                { label: 'Furniture',       value: 'Rs 27.4L' },
+                { label: 'Lifestyle',       value: 'Rs 14.4L' },
+              ];
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22 }}
+                  className="w-full mb-3">
+                  <div className="rounded-2xl overflow-hidden"
+                    style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+                    <div className="px-4 py-3"
+                      style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-2)' }}>
+                      <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+                        Category Breakdown — Q1 FY26
+                      </span>
+                    </div>
+                    {categories.map((row, i) => (
+                      <div key={row.label} className="flex items-center justify-between px-4 py-2.5"
+                        style={{ borderBottom: i < categories.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+                        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
+                        <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{row.value}</span>
+                      </div>
+                    ))}
+                    <div className="px-4 py-2.5"
+                      style={{ borderTop: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-2)' }}>
+                      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        Top dealers: Croma — Rs 50L &nbsp;·&nbsp; Vijay Sales — Rs 40L
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // ── peers incentive card ──────────────────────────────────
+            if (m.type === 'peers_incentive_card') {
+              const tiers = [
+                { slab: 'Tier 1', range: '< 80%',    multiplier: '1.0x', status: 'Cleared',             statusColor: 'var(--status-success)' },
+                { slab: 'Tier 2', range: '80–100%',  multiplier: '1.2x', status: 'Current',             statusColor: 'var(--status-warning)' },
+                { slab: 'Tier 3', range: '> 100%',   multiplier: '1.5x', status: 'Unlock at Rs 150L',   statusColor: 'var(--text-secondary)' },
+              ];
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.25 }}
+                  className="w-full mb-4">
+                  <div className="rounded-2xl p-5"
+                    style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+
+                    {/* Header */}
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-base">💰</span>
+                      <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Incentive Tracker — Q1 FY26</span>
+                    </div>
+
+                    {/* Stats */}
                     <div className="rounded-xl p-4 mb-4 space-y-2" style={{ backgroundColor: 'var(--surface-2)' }}>
                       {[
-                        { label: 'Log ID',        value: 'NC-2026-08431', mono: true },
-                        { label: 'Verified via',  value: 'Uploaded document', mono: false },
-                        { label: 'Audit note',    value: 'Updated by store employee', mono: false },
-                        { label: 'Timestamp',     value: 'Today, 3:42 PM', mono: false },
+                        { label: 'Accrued',                   value: '₹45,200' },
+                        { label: 'Projected (at current pace)', value: '₹62,000' },
+                        { label: 'Max potential',              value: '₹85,000' },
                       ].map(row => (
                         <div key={row.label} className="flex justify-between items-center text-xs">
                           <span style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
-                          <span className={row.mono ? 'font-mono' : ''} style={{ color: 'var(--text-primary)' }}>
+                          <span className="font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{row.value}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Nudge */}
+                    <p className="text-xs mb-4 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                      You're in <strong style={{ color: 'var(--text-primary)' }}>Tier 2 (80–100%)</strong>. Crossing 100% of your target unlocks a <strong style={{ color: 'var(--text-primary)' }}>1.5x multiplier</strong>.
+                    </p>
+
+                    {/* Tier table */}
+                    <div className="rounded-xl overflow-hidden mb-4" style={{ border: '1px solid var(--border-subtle)' }}>
+                      <div className="grid grid-cols-4 px-3 py-2"
+                        style={{ backgroundColor: 'var(--surface-2)', borderBottom: '1px solid var(--border-subtle)' }}>
+                        {['Slab', 'Range', 'Multiplier', 'Status'].map(h => (
+                          <span key={h} className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>{h}</span>
+                        ))}
+                      </div>
+                      {tiers.map((tier, i) => (
+                        <div key={tier.slab} className="grid grid-cols-4 items-center px-3 py-2.5"
+                          style={{ borderBottom: i < tiers.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+                          <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{tier.slab}</span>
+                          <span className="text-xs tabular-nums" style={{ color: 'var(--text-secondary)' }}>{tier.range}</span>
+                          <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{tier.multiplier}</span>
+                          <span className="text-xs font-medium" style={{ color: tier.statusColor }}>{tier.status}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // ── leave apply confirmation card ─────────────────────────
+            if (m.type === 'leave_apply_card') {
+              const isLive = stage === 'leave_apply_confirm';
+              const details = [
+                { label: 'Leave Category',    value: 'Privilege Leave' },
+                { label: 'Leave Sub-Category', value: 'Personal Leave' },
+                { label: 'Duration',          value: '0.5 day(s)' },
+                { label: 'Date',              value: '02 Apr 2026 (Second Half)' },
+                { label: 'Reason',            value: 'Attending a family function' },
+              ];
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.25 }}
+                  className="w-full mb-4">
+                  <div className="rounded-2xl p-5"
+                    style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+
+                    {/* Detail rows */}
+                    <div className="rounded-xl p-4 mb-4 space-y-2.5" style={{ backgroundColor: 'var(--surface-2)' }}>
+                      {details.map(row => (
+                        <div key={row.label} className="flex justify-between items-center text-xs gap-4">
+                          <span style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
+                          <span className="font-medium text-right" style={{ color: 'var(--text-primary)' }}>{row.value}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Warning */}
+                    <div className="rounded-xl px-4 py-3 mb-4 flex items-start gap-2.5"
+                      style={{ backgroundColor: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)' }}>
+                      <AlertCircle size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--status-warning)' }} />
+                      <p className="text-xs leading-relaxed" style={{ color: 'var(--status-warning)' }}>
+                        Your Privilege Leave balance is <strong>0.75 day(s)</strong>. Applying 0.5 day(s) will leave 0.25 remaining. Excess usage may require LWP approval per policy.
+                      </p>
+                    </div>
+
+                    {/* Confirm / Cancel buttons */}
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => isLive && handleLeaveApplyAction(true)}
+                        disabled={!isLive}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90 active:scale-[0.97]"
+                        style={{
+                          backgroundColor: isLive ? 'var(--status-success)' : 'var(--surface-2)',
+                          color: isLive ? '#ffffff' : 'var(--text-secondary)',
+                          cursor: isLive ? 'pointer' : 'default',
+                          border: 'none',
+                        }}>
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => isLive && handleLeaveApplyAction(false)}
+                        disabled={!isLive}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80 active:scale-[0.97]"
+                        style={{
+                          backgroundColor: 'var(--surface-2)',
+                          color: 'var(--text-primary)',
+                          border: '1px solid var(--border-subtle)',
+                          cursor: isLive ? 'pointer' : 'default',
+                          opacity: isLive ? 1 : 0.5,
+                        }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // ── leave apply success card ──────────────────────────────
+            if (m.type === 'leave_apply_success_card') {
+              const summaryRows = [
+                { label: 'Leave Type',  value: 'Privilege Leave – Personal' },
+                { label: 'Date',        value: '02 Apr 2026 (Second Half)' },
+                { label: 'Duration',    value: '0.5 day(s)' },
+                { label: 'Reference',   value: 'LV-2026-04821', mono: true },
+                { label: 'Status',      value: 'Pending approval' },
+              ];
+              return (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.25 }}
+                  className="w-full mb-4">
+                  <div className="rounded-2xl p-5"
+                    style={{ backgroundColor: 'var(--surface-1)', border: '1px solid rgba(22,163,74,0.3)' }}>
+
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: 'rgba(22,163,74,0.12)' }}>
+                        <CheckCircle2 size={20} style={{ color: 'var(--status-success)' }} />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold" style={{ color: 'var(--status-success)' }}>
+                          Leave applied successfully
+                        </div>
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                          Your half-day leave for 2 Apr 2026 has been submitted
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl p-4 mb-4 space-y-2" style={{ backgroundColor: 'var(--surface-2)' }}>
+                      {summaryRows.map(row => (
+                        <div key={row.label} className="flex justify-between items-center text-xs gap-4">
+                          <span style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
+                          <span className={row.mono ? 'font-mono' : 'font-medium'} style={{ color: 'var(--text-primary)' }}>
                             {row.value}
                           </span>
                         </div>
@@ -1695,6 +2124,20 @@ export function B2BChat({ onContextUpdate }: Props) {
             return null;
           })}
 
+          {stage === 'peers_incentive' && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+              className="flex justify-center mt-2 mb-4">
+              <button
+                onClick={handleStartAnotherRequest}
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all hover:opacity-80 active:scale-[0.97]"
+                style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                <RefreshCw size={13} />
+                Start new chat
+              </button>
+            </motion.div>
+          )}
+
           <div ref={endRef} className="h-4" />
         </div>
       </div>
@@ -1708,8 +2151,11 @@ export function B2BChat({ onContextUpdate }: Props) {
               stage === 'ask_lan'             ? 'Enter 10-digit Loan Account Number' :
               stage === 'doc_capturing'       ? 'Upload the supporting PDF document above' :
               stage === 'name_confirm'        ? 'Reply using the options above' :
-              stage === 'leave_summary'       ? 'Choose an option above' :
-              stage === 'leave_declaration'   ? 'Reply using the options above' :
+              stage === 'leave_summary'          ? 'Choose an option above' :
+              stage === 'leave_declaration'      ? 'Reply using the options above' :
+              stage === 'peers_summary'           ? 'Ask about your incentives or performance…' :
+              stage === 'leave_apply_confirm'    ? 'Confirm or cancel above' :
+              stage === 'leave_apply_submitting' ? 'Submitting…' :
               stage === 'do_intent'           ? 'Choose an option above' :
               stage === 'do_upload'           ? 'Attach the dealer letter above' :
               stage === 'do_governance'         ? 'Review and confirm above' :
@@ -1717,7 +2163,7 @@ export function B2BChat({ onContextUpdate }: Props) {
               stage === 'claim_proof_upload'    ? 'Upload payment proof above' :
               stage === 'claim_bill_type'       ? 'Choose bill type above' :
               stage === 'claim_review'          ? 'Confirm or decline above' :
-              (stage === 'success' || stage === 'leave_decl_success' || stage === 'do_cancelled' || stage === 'claim_submitted' || stage === 'generic')
+              (stage === 'success' || stage === 'leave_decl_success' || stage === 'do_cancelled' || stage === 'claim_submitted' || stage === 'leave_apply_success' || stage === 'generic')
                                                 ? 'What would you like to do next?' :
               'Processing…'
             }
@@ -1727,7 +2173,9 @@ export function B2BChat({ onContextUpdate }: Props) {
               stage !== 'generic' &&
               stage !== 'leave_decl_success' &&
               stage !== 'do_cancelled' &&
-              stage !== 'claim_submitted'
+              stage !== 'claim_submitted' &&
+              stage !== 'leave_apply_success' &&
+              stage !== 'peers_summary'
             }
             onSendMessage={handleChatTraySend}
             onNewConversation={handleStartAnotherRequest}

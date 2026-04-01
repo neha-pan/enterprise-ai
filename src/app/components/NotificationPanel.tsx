@@ -19,6 +19,7 @@ type NotificationGroup = 'action' | 'blocked' | 'time' | 'progress' | 'fyi';
 type Severity = 'low' | 'medium' | 'high';
 type NotificationFilter = 'all' | 'unread';
 type BadgeTone = 'urgent' | 'moderate' | 'status' | 'fyi' | 'success';
+type ActionResult = 'approved' | 'declined';
 
 type NotificationBase = {
   id: string;
@@ -606,6 +607,13 @@ function filterLabel(filter: NotificationFilter) {
   return 'Unread';
 }
 
+function getActionType(label: string): 'approve' | 'decline' | null {
+  const n = label.trim().toLowerCase();
+  if (n === 'approve' || n === 'accept') return 'approve';
+  if (n === 'reject' || n === 'decline') return 'decline';
+  return null;
+}
+
 function StepTracker({
   steps,
   currentStep,
@@ -668,7 +676,15 @@ function StepTracker({
   );
 }
 
-function ExpandedNotificationContent({ item }: { item: NotificationItem }) {
+function ExpandedNotificationContent({
+  item,
+  actionResult,
+  onAction,
+}: {
+  item: NotificationItem;
+  actionResult?: ActionResult;
+  onAction: (action: string) => void;
+}) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
@@ -730,29 +746,53 @@ function ExpandedNotificationContent({ item }: { item: NotificationItem }) {
   }
 
   if (item.layout === 'C') {
+    const approveBg  = isDark ? 'rgba(22,163,74,0.22)'  : '#DCFCE7';
+    const approveClr = isDark ? '#86EFAC' : '#166534';
+    const declineBg  = isDark ? 'rgba(185,28,28,0.28)'  : '#FEE2E2';
+    const declineClr = isDark ? '#FCA5A5' : '#B91C1C';
+
     return (
       <div className="space-y-3">
         <div className="rounded-lg px-3 py-2 text-xs" style={{ backgroundColor: chipBg, color: chipText }}>
           Requested by {item.requester}
         </div>
-        <div className="overflow-x-auto pb-1">
-          <div className="flex min-w-max flex-nowrap gap-2">
-            {actions.map((action, index) => (
-              <button
-                key={action}
-                type="button"
-                className="h-8 shrink-0 whitespace-nowrap rounded-full px-[14px] text-xs font-medium"
-                style={{
-                  backgroundColor: index === 0 ? BRAND_BLUE : btnSecBg,
-                  border: `1px solid ${index === 0 ? BRAND_BLUE : btnSecBdr}`,
-                  color: index === 0 ? '#FFFFFF' : btnSecText,
-                }}
-              >
-                {action}
-              </button>
-            ))}
+
+        {actionResult ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.2 }}
+            className="flex items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-semibold"
+            style={{
+              backgroundColor: actionResult === 'approved' ? approveBg : declineBg,
+              color: actionResult === 'approved' ? approveClr : declineClr,
+            }}
+          >
+            {actionResult === 'approved' ? <Check size={13} /> : <X size={13} />}
+            {actionResult === 'approved' ? 'Approved' : 'Declined'}
+          </motion.div>
+        ) : (
+          <div className="overflow-x-auto pb-1">
+            <div className="flex min-w-max flex-nowrap gap-2">
+              {actions.map((action, index) => (
+                <button
+                  key={action}
+                  type="button"
+                  onClick={() => { if (getActionType(action)) onAction(action); }}
+                  className="h-8 shrink-0 whitespace-nowrap rounded-full px-[14px] text-xs font-medium"
+                  style={{
+                    backgroundColor: index === 0 ? BRAND_BLUE : btnSecBg,
+                    border: `1px solid ${index === 0 ? BRAND_BLUE : btnSecBdr}`,
+                    color: index === 0 ? '#FFFFFF' : btnSecText,
+                  }}
+                >
+                  {action}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+
         <div className="space-y-2">
           {item.details.map((detail) => (
             <div key={detail} className="rounded-lg px-3 py-2 text-xs" style={{ backgroundColor: chipBg, color: chipText }}>
@@ -765,13 +805,33 @@ function ExpandedNotificationContent({ item }: { item: NotificationItem }) {
   }
 
   if (item.layout === 'D') {
-    return (
+    const approveBg  = isDark ? 'rgba(22,163,74,0.22)'  : '#DCFCE7';
+    const approveClr = isDark ? '#86EFAC' : '#166534';
+    const declineBg  = isDark ? 'rgba(185,28,28,0.28)'  : '#FEE2E2';
+    const declineClr = isDark ? '#FCA5A5' : '#B91C1C';
+
+    return actionResult ? (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.2 }}
+        className="flex items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-semibold"
+        style={{
+          backgroundColor: actionResult === 'approved' ? approveBg : declineBg,
+          color: actionResult === 'approved' ? approveClr : declineClr,
+        }}
+      >
+        {actionResult === 'approved' ? <Check size={13} /> : <X size={13} />}
+        {actionResult === 'approved' ? 'Approved' : 'Declined'}
+      </motion.div>
+    ) : (
       <div className="overflow-x-auto pb-1">
         <div className="flex min-w-max flex-nowrap gap-2">
           {actions.map((action, index) => (
             <button
               key={action}
               type="button"
+              onClick={() => { if (getActionType(action)) onAction(action); }}
               className="h-8 shrink-0 whitespace-nowrap rounded-full px-[14px] text-xs font-medium"
               style={{
                 backgroundColor: index === 0 ? BRAND_BLUE : btnSecBg,
@@ -843,19 +903,23 @@ function NotificationCard({
   expanded,
   unread,
   highlighted,
+  actionResult,
   onToggleExpanded,
   onDismiss,
   onSnooze,
   onHighlight,
+  onAction,
 }: {
   item: NotificationItem;
   expanded: boolean;
   unread: boolean;
   highlighted: boolean;
+  actionResult?: ActionResult;
   onToggleExpanded: (id: string) => void;
   onDismiss: (id: string) => void;
   onSnooze: (id: string) => void;
   onHighlight: (id: string) => void;
+  onAction: (id: string, action: string) => void;
 }) {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const { resolvedTheme } = useTheme();
@@ -1005,7 +1069,11 @@ function NotificationCard({
             style={{ overflow: 'hidden' }}
           >
             <div className="border-t px-4 pb-4 pt-3" style={{ borderColor: dividerColor }}>
-              <ExpandedNotificationContent item={item} />
+              <ExpandedNotificationContent
+                item={item}
+                actionResult={actionResult}
+                onAction={(action) => onAction(item.id, action)}
+              />
             </div>
           </motion.div>
         )}
@@ -1032,6 +1100,7 @@ function NotificationPanelContent({
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set());
   const [snoozedIds, setSnoozedIds] = useState<Set<string>>(() => new Set());
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [actionResults, setActionResults] = useState<Record<string, ActionResult>>({});
   const highlightTimeoutRef = useRef<number | null>(null);
 
   const sortedNotifications = useMemo(() => {
@@ -1102,6 +1171,17 @@ function NotificationPanelContent({
       next.delete(id);
       return next;
     });
+  };
+
+  const handleAction = (id: string, action: string) => {
+    const type = getActionType(action);
+    if (!type) return;
+    const result: ActionResult = type === 'approve' ? 'approved' : 'declined';
+    setActionResults((prev) => ({ ...prev, [id]: result }));
+    setTimeout(() => {
+      setDismissedIds((prev) => new Set(prev).add(id));
+      setExpandedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+    }, 1800);
   };
 
   const handleHighlight = (id: string) => {
@@ -1208,19 +1288,29 @@ function NotificationPanelContent({
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {visibleNotifications.length > 0 ? (
           <div className="space-y-3">
-            {visibleNotifications.map((item) => (
-              <NotificationCard
-                key={item.id}
-                item={item}
-                expanded={expandedIds.has(item.id)}
-                unread={!readIds.has(item.id)}
-                highlighted={highlightedId === item.id}
-                onToggleExpanded={handleToggleExpanded}
-                onDismiss={handleDismiss}
-                onSnooze={handleSnooze}
-                onHighlight={handleHighlight}
-              />
-            ))}
+            <AnimatePresence initial={false}>
+              {visibleNotifications.map((item) => (
+                <motion.div
+                  key={item.id}
+                  layout
+                  initial={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: '70%', transition: { duration: 0.35, ease: [0.4, 0, 1, 1] } }}
+                >
+                  <NotificationCard
+                    item={item}
+                    expanded={expandedIds.has(item.id)}
+                    unread={!readIds.has(item.id)}
+                    highlighted={highlightedId === item.id}
+                    actionResult={actionResults[item.id]}
+                    onToggleExpanded={handleToggleExpanded}
+                    onDismiss={handleDismiss}
+                    onSnooze={handleSnooze}
+                    onHighlight={handleHighlight}
+                    onAction={handleAction}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         ) : (
           <div className="flex h-full min-h-[280px] items-center justify-center">

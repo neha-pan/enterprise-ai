@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { Eye, EyeOff, ChevronDown, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '../context/AuthContext';
+import { motion } from 'motion/react';
 
 interface DemoUser {
   email: string;
@@ -15,6 +16,7 @@ interface DemoUser {
   badgeDarkColor: string;
   badgeBg: string;
   route: string;
+  hidden?: boolean;
 }
 
 const DEMO_USERS: DemoUser[] = [
@@ -29,6 +31,7 @@ const DEMO_USERS: DemoUser[] = [
     badgeDarkColor: '#60A5FA',
     badgeBg: 'rgba(37,99,235,0.08)',
     route: '/biometric-setup',
+    hidden: true,
   },
   {
     email: 'rita.sharma@bajaj.finserv.in',
@@ -41,6 +44,7 @@ const DEMO_USERS: DemoUser[] = [
     badgeDarkColor: '#4ADE80',
     badgeBg: 'rgba(22,163,74,0.08)',
     route: '/employee-home',
+    hidden: true,
   },
   {
     email: 'rahul.shah@bajaj.finserv.in',
@@ -65,6 +69,7 @@ const DEMO_USERS: DemoUser[] = [
     badgeDarkColor: '#FCD34D',
     badgeBg: 'rgba(217,119,6,0.08)',
     route: '/hr-home',
+    hidden: true,
   },
   {
     email: 'anurag.chottani@bajaj.finserv.in',
@@ -152,9 +157,12 @@ export function LoginEntry() {
   const handleThemeToggle = () => setTheme(isDark ? 'light' : 'dark');
 
   return (
-    <div
+    <motion.div
       className="min-h-screen relative overflow-hidden flex flex-col"
       style={{ backgroundColor: 'var(--bg-base)' }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
     >
       {/* Title bar */}
       <header
@@ -204,7 +212,7 @@ export function LoginEntry() {
             linear-gradient(var(--bg-grid) 1px, transparent 1px),
             linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px)
           `,
-          backgroundSize: '24px 24px',
+          backgroundSize: '56px 56px',
         }}
       />
 
@@ -328,7 +336,7 @@ export function LoginEntry() {
                   </div>
 
                   {/* User rows */}
-                  {DEMO_USERS.map((user, i) => (
+                  {DEMO_USERS.filter(u => !u.hidden).map((user, i, arr) => (
                     <button
                       key={user.email}
                       type="button"
@@ -338,7 +346,7 @@ export function LoginEntry() {
                         background: 'transparent',
                         border: 'none',
                         cursor: 'pointer',
-                        borderBottom: i < DEMO_USERS.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                        borderBottom: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none',
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = 'var(--surface-2)';
@@ -461,6 +469,6 @@ export function LoginEntry() {
         </div>
       </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

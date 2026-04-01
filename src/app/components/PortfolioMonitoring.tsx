@@ -89,7 +89,7 @@ export function PortfolioMonitoring() {
             linear-gradient(var(--bg-grid) 1px, transparent 1px),
             linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px)
           `,
-          backgroundSize: '24px 24px'
+          backgroundSize: '56px 56px'
         }}
       />
 

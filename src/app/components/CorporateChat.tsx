@@ -75,11 +75,12 @@ const IT_STATUS_ROWS = [
 
 const GOLIVE_ROWS = [
   {
-    project:  'FinnOne LOS Upgrade v3.2',
+    project:  'LOS Upgrade v3.2',
     planned:  '15 Apr',
     revised:  '20 May',
     delay:    '35d',
     blocker:  'UAT sign-off pending',
+    owner:    'Arjun Mehta',
   },
   {
     project:  '3IN1 Middle Layer Stability Pack',
@@ -87,6 +88,7 @@ const GOLIVE_ROWS = [
     revised:  '28 Apr',
     delay:    '23d',
     blocker:  'Infra capacity + perf testing',
+    owner:    'Priya Nair',
   },
   {
     project:  'SalesOne v6.1 Release',
@@ -94,6 +96,7 @@ const GOLIVE_ROWS = [
     revised:  '06 May',
     delay:    '26d',
     blocker:  'CAB window + security sign-off',
+    owner:    'Rohan Desai',
   },
   {
     project:  'APIM Gateway Migration',
@@ -101,6 +104,7 @@ const GOLIVE_ROWS = [
     revised:  '22 Apr',
     delay:    '28d',
     blocker:  'Dependency on network change',
+    owner:    'Sneha Kulkarni',
   },
   {
     project:  'KYC POD eKYC Enhancements',
@@ -108,6 +112,7 @@ const GOLIVE_ROWS = [
     revised:  '30 Apr',
     delay:    '28d',
     blocker:  'Vendor SDK patch',
+    owner:    'Vikram Joshi',
   },
 ];
 
@@ -122,32 +127,32 @@ const KID_AREA_TABLE = [
 ];
 
 const KID_RED_ROWS = [
-  { area: 'Delivery',  metric: 'FinnOne LOS Uptime %',          value: '91.2%', target: '99.5%', gap: '−8.3pp' },
-  { area: 'Delivery',  metric: 'P1 Incidents (MTD)',             value: '7',     target: '≤3',    gap: '+4'     },
-  { area: 'Delivery',  metric: 'Change Success Rate',            value: '78%',   target: '≥95%',  gap: '−17pp'  },
-  { area: 'People',    metric: 'Critical Role Vacancy %',        value: '18%',   target: '<10%',  gap: '+8pp'   },
-  { area: 'People',    metric: 'Attrition — AI Unit',           value: '9.6%',  target: '8.5%',  gap: '+1.1pp' },
-  { area: 'People',    metric: 'Training Completion (Mandatory)', value: '62%',  target: '≥90%',  gap: '−28pp'  },
+  { metric: 'Web2App Installs',          area: 'App Acquisition', value: '3% vs 30% AOP'      },
+  { metric: 'NON-POS App Downloads',     area: 'App Acquisition', value: '69% of AOP'          },
+  { metric: 'Call Center App Downloads', area: 'App Acquisition', value: '60% of AOP'          },
+  { metric: 'App Engagement Score',      area: 'App Heart',       value: '1.5 vs ~2.4'         },
+  { metric: 'ANR',                       area: 'App Stability',   value: '4.67% vs 4% AOP'    },
+  { metric: 'Cold Start Time',           area: 'App Performance', value: '22.0% vs 15% AOP'   },
 ];
 
 const KID_AMBER_ROWS = [
-  { area: 'Quality',    metric: 'Test Coverage — Core Banking',  value: '72%',   target: '≥80%',  gap: '−8pp'  },
-  { area: 'Quality',    metric: 'Defect Escape Rate',            value: '4.2%',  target: '<3%',   gap: '+1.2pp'},
-  { area: 'Operations', metric: 'SLA Adherence — L2 Tickets',   value: '88%',   target: '≥95%',  gap: '−7pp'  },
-  { area: 'Operations', metric: 'MTTR (Major Incidents)',        value: '4.2h',  target: '≤3h',   gap: '+1.2h' },
-  { area: 'Financial',  metric: 'Opex Utilisation %',           value: '92%',   target: '≤85%',  gap: '+7pp'  },
-  { area: 'Financial',  metric: 'Vendor Invoice Aging >30d',    value: '₹12Cr', target: '≤₹8Cr', gap: '+₹4Cr' },
-  { area: 'Security',   metric: 'Phishing Simulation Pass Rate', value: '74%',   target: '≥85%',  gap: '−11pp' },
-  { area: 'Security',   metric: 'Open High Vulns (Unpatched)',  value: '9',     target: '0',     gap: '+9'    },
-  { area: 'Delivery',   metric: 'Sprint Velocity Adherence',    value: '81%',   target: '≥90%',  gap: '−9pp'  },
-  { area: 'People',     metric: 'Internal Mobility Rate (YTD)', value: '3.1%',  target: '≥5%',   gap: '−1.9pp'},
-  { area: 'Quality',    metric: 'Automation Coverage',          value: '58%',   target: '≥70%',  gap: '−12pp' },
+  { metric: 'Total App Downloads',      area: 'App Acquisition',  value: '104% of AOP'          },
+  { metric: 'POS (B2B) Downloads',      area: 'App Acquisition',  value: '99% of AOP'           },
+  { metric: 'Paid DP Traffic',          area: 'Web Traffic',      value: '91% of AOP'           },
+  { metric: 'Service Web Traffic',      area: 'Web Traffic',      value: '91% of AOP'           },
+  { metric: 'Web Avg Session Time',     area: 'Web Engagement',   value: 'Below AOP'            },
+  { metric: 'Bounce Rate – HP (Web)',   area: 'Adoption',         value: '47% vs 40% threshold' },
+  { metric: 'App DXS',                  area: 'App Heart',        value: '5.4 vs ~6.1 L3MA'    },
+  { metric: 'Loans MAU',               area: 'Engagement',       value: '65% of AOP'           },
+  { metric: 'B2B MAU',                 area: 'Engagement',       value: '84% of AOP'           },
+  { metric: 'Monthly App Sessions',    area: 'Engagement',       value: '80% of AOP'           },
+  { metric: 'Uninstall Rate',          area: 'Adoption',         value: '38.9% vs 37.3% AOP'  },
 ];
 
 const DP_KID_TRIGGER = 'Show me a summarised view of Digital KID';
 const KID_LIVE_STAGES: ChatStage[] = ['kid_summary', 'kid_red_detail', 'kid_amber_detail'];
 
-const IT_PROJECTS_TRIGGER = 'Give me a current status summary of all active IT projects — timelines, owners, and blockers.';
+const IT_PROJECTS_TRIGGER = 'Give me a current status summary of all active IT projects';
 const MY_ATTRITION_TRIGGER = "What's my attrition status";
 
 const ATTRITION_SUMMARY = {
@@ -182,6 +187,15 @@ const isMyAttritionIntent = (q: string) => {
     normalized === normalize(MY_ATTRITION_TRIGGER) ||
     normalized.includes('my attrition') ||
     (normalized.includes('attrition') && normalized.includes('my') && normalized.includes('status'))
+  );
+};
+const isUnitWiseIntent = (q: string) => {
+  const n = normalize(q);
+  return (
+    n.includes('unit wise') || n.includes('unit-wise') || n.includes('unitwise') ||
+    n.includes('show unit') || n.includes('breakdown') ||
+    (n.includes('unit') && n.includes('attrition')) ||
+    (n.includes('unit') && n.includes('status'))
   );
 };
 const isGoLiveIntent = (q: string) =>
@@ -334,7 +348,6 @@ export function CorporateChat() {
     setTimeout(() => {
       push('assistant', 'text', "Here's your attrition snapshot at your level.");
       push('assistant', 'attrition_summary_card');
-      push('assistant', 'attrition_follow_chips');
       setStage('attrition_summary');
     }, 2600);
   };
@@ -440,7 +453,7 @@ export function CorporateChat() {
       push('assistant', 'text', "Here's a summarised view of your Digital KID as of today.");
       push('assistant', 'kid_summary_card');
       push('assistant', 'kid_summary_table');
-      push('assistant', 'kid_metric_chips', '', { chips: ['🔴 Red items (2)', '🟡 Amber items (5)', '🟢 Green items (41)'] });
+      push('assistant', 'kid_metric_chips', '', { chips: ['🔴 Red items (6)', '🟡 Amber items (11)', '🟢 Green items (31)'] });
       setStage('kid_summary');
     }, 2300);
   };
@@ -541,19 +554,15 @@ export function CorporateChat() {
       return;
     }
     if (stage === 'attrition_summary') {
-      const normalized = normalize(query);
-      if (normalized === 'yes') {
-        handleAttritionChoice('Yes');
-        return;
-      }
-      if (normalized === 'no') {
-        handleAttritionChoice('No');
+      if (isUnitWiseIntent(query)) {
+        push('user', 'text', query);
+        startAttritionBreakdownJourney();
         return;
       }
       push('user', 'text', query);
       setTimeout(() => {
-        push('assistant', 'text', 'Please choose Yes or No, or ask a follow-up question.');
-      }, 350);
+        push('assistant', 'text', "I'll look into that for you. This view is coming soon.");
+      }, 400);
       return;
     }
     if (stage === 'attrition_breakdown' || stage === 'attrition_actions') {
@@ -1052,13 +1061,14 @@ export function CorporateChat() {
                     </div>
 
                     {/* Column headings */}
-                    <div className="grid grid-cols-[2fr_1fr_1fr_auto_2fr] gap-x-3 px-5 py-2.5 text-[11px] font-medium uppercase tracking-wide"
+                    <div className="grid grid-cols-[1.5fr_auto_auto_auto_1.5fr_1.2fr] gap-x-3 px-5 py-2.5 text-[11px] font-medium uppercase tracking-wide"
                       style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-subtle)' }}>
                       <span>Project</span>
                       <span>Planned</span>
                       <span>Revised</span>
                       <span>Delay</span>
                       <span>Blocker</span>
+                      <span>Owner</span>
                     </div>
 
                     {/* Rows */}
@@ -1068,7 +1078,7 @@ export function CorporateChat() {
                         initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.2, delay: 0.06 + i * 0.08 }}
-                        className="grid grid-cols-[2fr_1fr_1fr_auto_2fr] gap-x-3 items-start px-5 py-3.5 text-xs"
+                        className="grid grid-cols-[1.5fr_auto_auto_auto_1.5fr_1.2fr] gap-x-3 items-start px-5 py-3.5 text-xs"
                         style={{ borderBottom: i < GOLIVE_ROWS.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}
                       >
                         <span className="font-medium leading-snug" style={{ color: 'var(--text-primary)' }}>
@@ -1083,6 +1093,9 @@ export function CorporateChat() {
                           className="px-2 py-0.5 rounded-md leading-snug text-[11px]"
                           style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
                           {row.blocker}
+                        </span>
+                        <span className="font-medium leading-snug" style={{ color: 'var(--text-primary)' }}>
+                          {row.owner}
                         </span>
                       </motion.div>
                     ))}
@@ -1155,9 +1168,9 @@ export function CorporateChat() {
                     </div>
                     <div className="px-5 py-4 flex gap-4">
                       {[
-                        { label: 'Green', count: 41, color: G, bg: 'rgba(22,163,74,0.08)' },
-                        { label: 'Amber', count: 5,  color: A, bg: 'rgba(217,119,6,0.08)' },
-                        { label: 'Red',   count: 2,  color: R, bg: 'rgba(220,38,38,0.08)' },
+                        { label: 'Green', count: 31, color: G, bg: 'rgba(22,163,74,0.08)' },
+                        { label: 'Amber', count: 11, color: A, bg: 'rgba(217,119,6,0.08)' },
+                        { label: 'Red',   count: 6,  color: R, bg: 'rgba(220,38,38,0.08)' },
                       ].map((item, i) => (
                         <motion.div key={item.label}
                           initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
@@ -1284,10 +1297,10 @@ export function CorporateChat() {
                       </span>
                     </div>
                     <div className="overflow-x-auto">
-                      <table className="min-w-[580px] w-full text-xs">
+                      <table className="w-full text-xs">
                         <thead>
                           <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                            {['Area', 'Metric', 'Value', 'Target', 'Gap'].map(h => (
+                            {['Metric', 'Area', "Mar'25 Actual vs AOP"].map(h => (
                               <th key={h} className="px-4 py-2.5 text-left font-medium uppercase tracking-wide"
                                 style={{ color: 'var(--text-secondary)' }}>{h}</th>
                             ))}
@@ -1299,11 +1312,9 @@ export function CorporateChat() {
                               initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.18, delay: 0.05 + i * 0.07 }}
                               style={{ borderBottom: i < KID_RED_ROWS.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-                              <td className="px-4 py-2.5" style={{ color: 'var(--text-secondary)' }}>{row.area}</td>
                               <td className="px-4 py-2.5 font-medium leading-snug" style={{ color: 'var(--text-primary)' }}>{row.metric}</td>
-                              <td className="px-4 py-2.5 tabular-nums font-semibold" style={{ color: R }}>{row.value}</td>
-                              <td className="px-4 py-2.5 tabular-nums" style={{ color: 'var(--text-secondary)' }}>{row.target}</td>
-                              <td className="px-4 py-2.5 tabular-nums font-semibold" style={{ color: R }}>{row.gap}</td>
+                              <td className="px-4 py-2.5" style={{ color: 'var(--text-secondary)' }}>{row.area}</td>
+                              <td className="px-4 py-2.5 font-semibold" style={{ color: R }}>{row.value}</td>
                             </motion.tr>
                           ))}
                         </tbody>
@@ -1343,10 +1354,10 @@ export function CorporateChat() {
                       </span>
                     </div>
                     <div className="overflow-x-auto">
-                      <table className="min-w-[580px] w-full text-xs">
+                      <table className="w-full text-xs">
                         <thead>
                           <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                            {['Area', 'Metric', 'Value', 'Target', 'Gap'].map(h => (
+                            {['Metric', 'Area', "Mar'25 Status"].map(h => (
                               <th key={h} className="px-4 py-2.5 text-left font-medium uppercase tracking-wide"
                                 style={{ color: 'var(--text-secondary)' }}>{h}</th>
                             ))}
@@ -1358,11 +1369,9 @@ export function CorporateChat() {
                               initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.18, delay: 0.05 + i * 0.06 }}
                               style={{ borderBottom: i < KID_AMBER_ROWS.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-                              <td className="px-4 py-2.5" style={{ color: 'var(--text-secondary)' }}>{row.area}</td>
                               <td className="px-4 py-2.5 font-medium leading-snug" style={{ color: 'var(--text-primary)' }}>{row.metric}</td>
-                              <td className="px-4 py-2.5 tabular-nums font-semibold" style={{ color: A }}>{row.value}</td>
-                              <td className="px-4 py-2.5 tabular-nums" style={{ color: 'var(--text-secondary)' }}>{row.target}</td>
-                              <td className="px-4 py-2.5 tabular-nums font-semibold" style={{ color: A }}>{row.gap}</td>
+                              <td className="px-4 py-2.5" style={{ color: 'var(--text-secondary)' }}>{row.area}</td>
+                              <td className="px-4 py-2.5 font-semibold" style={{ color: A }}>{row.value}</td>
                             </motion.tr>
                           ))}
                         </tbody>
