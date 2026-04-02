@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   BarChart2, TrendingDown, FileText, BookOpen,
   ChevronRight, RefreshCw, Clock,
@@ -608,34 +608,45 @@ export function CorporateChat() {
   const lastKidAmberLoaderId = msgs.filter(m => m.type === 'kid_amber_loader').at(-1)?.id;
   const lastKidChipsId      = msgs.filter(m => m.type === 'kid_metric_chips').at(-1)?.id;
 
-  // ── Home screen ────────────────────────────────────────────────────────
+  // ── Home screen + Chat screen ──────────────────────────────────────────
+
+  const chatTransition = { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const };
 
   if (stage === 'home') {
     return (
-      <div className="flex flex-col items-center justify-center h-full px-4 py-8 gap-5 overflow-y-auto">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <p style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}>Hi Anurag</p>
-          <h1
-            style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}
-          >
-            Where should we start?
-          </h1>
-        </div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="home"
+          className="flex flex-col items-center justify-center h-full px-4 py-8 gap-5 overflow-y-auto"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={chatTransition}
+        >
+          <div className="flex flex-col items-center gap-2 text-center">
+            <p style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}>Hi Anurag</p>
+            <h1
+              style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}
+            >
+              Where should we start?
+            </h1>
+          </div>
 
-        <div className="w-full max-w-xl">
-          <ChatComposer
-            placeholder="Ask about projects, attrition, minutes or KIDs…"
-            prefillValue={prefillText}
-            onSendMessage={handleSend}
+          <div className="w-full max-w-xl">
+            <ChatComposer
+              placeholder="Ask about projects, attrition, minutes or KIDs…"
+              prefillValue={prefillText}
+              onSendMessage={handleSend}
+            />
+          </div>
+
+          <SuggestiveActions
+            categories={CORPORATE_CATEGORIES}
+            onHoverPrompt={setPrefillText}
+            onSelectPrompt={(q) => { setPrefillText(''); handleSend(q); }}
           />
-        </div>
-
-        <SuggestiveActions
-          categories={CORPORATE_CATEGORIES}
-          onHoverPrompt={setPrefillText}
-          onSelectPrompt={(q) => { setPrefillText(''); handleSend(q); }}
-        />
-      </div>
+        </motion.div>
+      </AnimatePresence>
     );
   }
 
@@ -665,7 +676,15 @@ export function CorporateChat() {
     stage !== 'generic';
 
   return (
-    <div className="flex flex-col h-full">
+    <AnimatePresence mode="wait">
+    <motion.div
+      key="chat"
+      className="flex flex-col h-full"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={chatTransition}
+    >
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 flex flex-col">
 
@@ -1390,7 +1409,7 @@ export function CorporateChat() {
           })}
 
           {/* Reset */}
-          {(stage === 'golive_detail' || stage === 'attrition_breakdown' || stage === 'attrition_actions' || stage === 'kid_red_detail' || stage === 'kid_amber_detail' || stage === 'generic') && (
+          {(stage === 'golive_detail' || stage === 'attrition_breakdown' || stage === 'attrition_actions' || stage === 'kid_red_detail' || stage === 'kid_amber_detail' || stage === 'it_summary' || stage === 'generic') && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
@@ -1421,6 +1440,7 @@ export function CorporateChat() {
           />
         </div>
       </div>
-    </div>
+    </motion.div>
+    </AnimatePresence>
   );
 }

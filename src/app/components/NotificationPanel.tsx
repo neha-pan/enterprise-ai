@@ -759,9 +759,9 @@ function ExpandedNotificationContent({
 
         {actionResult ? (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
             className="flex items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-semibold"
             style={{
               backgroundColor: actionResult === 'approved' ? approveBg : declineBg,

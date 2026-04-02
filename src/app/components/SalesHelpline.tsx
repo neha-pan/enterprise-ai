@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { SalesChat } from './sales-helpline/SalesChat';
 import { NotificationMobilePanel, NotificationPanel } from './NotificationPanel';
 import { AppShell, type ConversationItem, type UserInfo } from './AppShell';
@@ -23,12 +24,15 @@ const USER: UserInfo = {
 };
 
 export function SalesHelpline() {
+  const [chatKey, setChatKey] = useState(0);
+
   return (
     <AppShell
       conversations={CONVERSATIONS}
       user={USER}
       accentBorderColor="rgba(37,99,235,0.2)"
       accentTextColor="#2563eb"
+      onNewChat={() => setChatKey(k => k + 1)}
       rightPanel={
         <NotificationPanel
           profile="dms"
@@ -40,7 +44,18 @@ export function SalesHelpline() {
         <NotificationMobilePanel profile="dms" onClose={onClose} />
       )}
     >
-      <SalesChat />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={chatKey}
+          className="h-full"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <SalesChat />
+        </motion.div>
+      </AnimatePresence>
     </AppShell>
   );
 }

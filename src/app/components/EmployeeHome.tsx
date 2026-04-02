@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Calendar, Plane, BarChart2, Car, X, BookOpen } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { ChatComposer } from './ChatComposer';
 import { UserMessageBubble } from './UserMessageBubble';
 import { BotMessageText } from './BotMessageText';
@@ -177,6 +178,7 @@ export function EmployeeHome() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [botStage, setBotStage] = useState<BotStage>('idle');
   const [prefillText, setPrefillText] = useState('');
+  const [chatKey, setChatKey] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -247,12 +249,20 @@ export function EmployeeHome() {
 
   const hasMessages = messages.length > 0;
 
+  const handleNewChat = () => {
+    setMessages([]);
+    setBotStage('idle');
+    setPrefillText('');
+    setChatKey(k => k + 1);
+  };
+
   return (
     <AppShell
       conversations={CONVERSATIONS}
       user={USER}
       accentBorderColor="rgba(22,163,74,0.2)"
       accentTextColor="#16a34a"
+      onNewChat={handleNewChat}
       rightPanel={
         <div
           className="hidden xl:flex flex-col w-[22rem] border-l overflow-y-auto shrink-0"
@@ -263,72 +273,97 @@ export function EmployeeHome() {
       }
       rightPanelMobile={(onClose) => <RightPanelBody onClose={onClose} />}
     >
-      {hasMessages ? (
-        /* ── Chat state: message feed + bottom composer ── */
-        <div className="flex flex-col h-full overflow-hidden">
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-4">
-              {/* Greeting stays visible at top once chat starts */}
-              <div className="flex flex-col items-center gap-2 text-center pb-2">
-                <p style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}>Hi Rita</p>
-                <h1
-                  style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}
-                >
-                  Where should we start?
-                </h1>
-              </div>
-
-              {messages.map(message => (
-                <div key={message.id} style={{ animation: 'slideUpFade 250ms ease-out' }}>
-                  {message.type === 'user' && <UserMessageBubble text={message.text} />}
-                  {message.type === 'assistant' && (
-                    <BotMessageText text={message.text} isLoading={message.isLoading} />
-                  )}
-                </div>
-              ))}
-              <div ref={messagesEndRef} style={{ height: '4rem' }} />
-            </div>
-          </div>
-
-          {/* Bottom-pinned composer (chat state) */}
-          <div
-            className="shrink-0 border-t px-4 py-4"
-            style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--surface-1)' }}
+      <AnimatePresence mode="wait">
+      <motion.div
+        key={chatKey}
+        className="h-full"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      >
+      <AnimatePresence mode="wait">
+        {hasMessages ? (
+          /* ── Chat state: message feed + bottom composer ── */
+          <motion.div
+            key="chat"
+            className="flex flex-col h-full overflow-hidden"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="max-w-2xl mx-auto">
-              <ChatComposer onSendMessage={handleSendMessage} />
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-4">
+                {/* Greeting stays visible at top once chat starts */}
+                <div className="flex flex-col items-center gap-2 text-center pb-2">
+                  <p style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}>Hi Rita</p>
+                  <h1
+                    style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}
+                  >
+                    Where should we start?
+                  </h1>
+                </div>
+
+                {messages.map(message => (
+                  <div key={message.id} style={{ animation: 'slideUpFade 250ms ease-out' }}>
+                    {message.type === 'user' && <UserMessageBubble text={message.text} />}
+                    {message.type === 'assistant' && (
+                      <BotMessageText text={message.text} isLoading={message.isLoading} />
+                    )}
+                  </div>
+                ))}
+                <div ref={messagesEndRef} style={{ height: '4rem' }} />
+              </div>
             </div>
-          </div>
-        </div>
-      ) : (
-        /* ── Welcome state: centred composer + suggestive actions below ── */
-        <div className="flex flex-col items-center justify-center h-full px-4 py-8 gap-5 overflow-y-auto">
-          {/* Greeting */}
-          <div className="flex flex-col items-center gap-2 text-center">
-            <p style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}>Hi Rita</p>
-            <h1
-              style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}
+
+            {/* Bottom-pinned composer (chat state) */}
+            <div
+              className="shrink-0 border-t px-4 py-4"
+              style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--surface-1)' }}
             >
-              Where should we start?
-            </h1>
-          </div>
+              <div className="max-w-2xl mx-auto">
+                <ChatComposer onSendMessage={handleSendMessage} />
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          /* ── Welcome state: centred composer + suggestive actions below ── */
+          <motion.div
+            key="welcome"
+            className="flex flex-col items-center justify-center h-full px-4 py-8 gap-5 overflow-y-auto"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {/* Greeting */}
+            <div className="flex flex-col items-center gap-2 text-center">
+              <p style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}>Hi Rita</p>
+              <h1
+                style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}
+              >
+                Where should we start?
+              </h1>
+            </div>
 
-          {/* Centred composer */}
-          <div className="w-full max-w-xl">
-            <ChatComposer
-              prefillValue={prefillText}
-              onSendMessage={(q) => { setPrefillText(''); handleSendMessage(q); }}
+            {/* Centred composer */}
+            <div className="w-full max-w-xl">
+              <ChatComposer
+                prefillValue={prefillText}
+                onSendMessage={(q) => { setPrefillText(''); handleSendMessage(q); }}
+              />
+            </div>
+
+            {/* Suggestive action categories */}
+            <SuggestiveActions
+              categories={EMPLOYEE_CATEGORIES}
+              onHoverPrompt={setPrefillText}
+              onSelectPrompt={(q) => { setPrefillText(''); handleSendMessage(q); }}
             />
-          </div>
-
-          {/* Suggestive action categories */}
-          <SuggestiveActions
-            categories={EMPLOYEE_CATEGORIES}
-            onHoverPrompt={setPrefillText}
-            onSelectPrompt={(q) => { setPrefillText(''); handleSendMessage(q); }}
-          />
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <style>{`
         @keyframes slideUpFade {
@@ -336,6 +371,8 @@ export function EmployeeHome() {
           to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+      </motion.div>
+      </AnimatePresence>
     </AppShell>
   );
 }

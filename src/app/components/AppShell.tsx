@@ -46,6 +46,8 @@ interface AppShellProps {
   rightPanel?: React.ReactNode;
   /** Mobile right panel — render prop receives onClose callback */
   rightPanelMobile?: (onClose: () => void) => React.ReactNode;
+  /** Called when the user clicks "New Chat" in the sidebar */
+  onNewChat?: () => void;
   children: React.ReactNode;
 }
 
@@ -96,6 +98,7 @@ export function AppShell({
   accentTextColor = '#2563eb',
   rightPanel,
   rightPanelMobile,
+  onNewChat,
   children,
 }: AppShellProps) {
   const { resolvedTheme, setTheme } = useTheme();
@@ -213,6 +216,7 @@ export function AppShell({
         <button
           className="flex items-center gap-2 w-full px-3 py-2 rounded-xl transition-colors hover:opacity-80"
           style={{ color: 'var(--text-secondary)' }}
+          onClick={onNewChat}
         >
           <span
             className="shrink-0 w-6 h-6 flex items-center justify-center rounded-lg"
@@ -427,8 +431,8 @@ export function AppShell({
     <motion.div
       className="flex h-screen overflow-hidden font-sans"
       style={{ backgroundColor: 'var(--bg-base)' }}
-      initial={{ opacity: 0, scale: 0.985 }}
-      animate={{ opacity: isSigningOut ? 0 : 1, scale: isSigningOut ? 0.97 : 1 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: isSigningOut ? 0 : 1 }}
       transition={isSigningOut ? { duration: 0.3, ease: 'easeIn' } : shellEntryTransition}
       onAnimationComplete={() => { if (isSigningOut) { logout(); navigate('/'); } }}
     >
@@ -454,7 +458,7 @@ export function AppShell({
           backgroundColor: 'var(--surface-1)',
           borderRight: '1px solid var(--border-subtle)',
         }}
-        initial={isDesktopViewport ? { x: -72, opacity: 0 } : false}
+        initial={isDesktopViewport ? { x: -16, opacity: 0 } : false}
         animate={{ x: 0, opacity: 1 }}
         transition={leftPanelEntryTransition}
       >
@@ -539,7 +543,7 @@ export function AppShell({
           {rightPanel && (
             <motion.div
               className="hidden xl:flex h-full shrink-0"
-              initial={isWideDesktopViewport ? { x: 72, opacity: 0 } : false}
+              initial={isWideDesktopViewport ? { x: 16, opacity: 0 } : false}
               animate={{ x: 0, opacity: 1 }}
               transition={rightPanelEntryTransition}
             >
@@ -550,19 +554,23 @@ export function AppShell({
       </div>
 
       {/* Mobile right drawer */}
-      {rightPanelMobile && (
-        <div
-          className={`xl:hidden fixed inset-y-0 right-0 z-50 w-[22rem] max-w-[85vw] overflow-y-auto transition-transform duration-300 ease-in-out ${
-            rightOpen ? 'translate-x-0' : 'translate-x-full'
-          }`}
-          style={{
-            backgroundColor: 'var(--surface-1)',
-            borderLeft: '1px solid var(--border-subtle)',
-          }}
-        >
-          {rightPanelMobile(() => setRightOpen(false))}
-        </div>
-      )}
+      <AnimatePresence>
+        {rightPanelMobile && rightOpen && (
+          <motion.div
+            className="xl:hidden fixed inset-y-0 right-0 z-50 w-[22rem] max-w-[85vw] overflow-y-auto"
+            style={{
+              backgroundColor: 'var(--surface-1)',
+              borderLeft: '1px solid var(--border-subtle)',
+            }}
+            initial={{ x: 24, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 24, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {rightPanelMobile(() => setRightOpen(false))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile right backdrop */}
       {rightOpen && (

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FileText, Calendar, Users, BarChart2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { ChatComposer } from './ChatComposer';
 import { AppShell, type ConversationItem, type UserInfo } from './AppShell';
 import { NotificationPanel, NotificationMobilePanel } from './NotificationPanel';
@@ -71,6 +72,12 @@ const HR_CATEGORIES: SuggestiveCategory[] = [
 
 export function HRHome() {
   const [prefillText, setPrefillText] = useState('');
+  const [chatKey, setChatKey] = useState(0);
+
+  const handleNewChat = () => {
+    setPrefillText('');
+    setChatKey(k => k + 1);
+  };
 
   return (
     <AppShell
@@ -78,6 +85,7 @@ export function HRHome() {
       user={USER}
       accentBorderColor="rgba(217,119,6,0.2)"
       accentTextColor="#b45309"
+      onNewChat={handleNewChat}
       rightPanel={
         <NotificationPanel
           profile="hr"
@@ -89,6 +97,15 @@ export function HRHome() {
         <NotificationMobilePanel profile="hr" onClose={onClose} />
       )}
     >
+      <AnimatePresence mode="wait">
+      <motion.div
+        key={chatKey}
+        className="h-full"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      >
       <div className="flex flex-col items-center justify-center h-full px-4 py-8 gap-5 overflow-y-auto">
         {/* Badge + greeting */}
         <div className="flex flex-col items-center gap-2 text-center">
@@ -112,6 +129,8 @@ export function HRHome() {
           onSelectPrompt={(q) => setPrefillText(q)}
         />
       </div>
+      </motion.div>
+      </AnimatePresence>
     </AppShell>
   );
 }

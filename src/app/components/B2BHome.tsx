@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { motion, AnimatePresence } from 'motion/react';
 import { B2BChat, type B2BContext } from './B2BChat';
 import { useAuth } from '../context/AuthContext';
 import { NotificationMobilePanel, NotificationPanel } from './NotificationPanel';
@@ -26,6 +27,7 @@ const USER: UserInfo = {
 
 export function B2BHome() {
   const [, setCtx] = useState<B2BContext>({ status: 'waiting' });
+  const [chatKey, setChatKey] = useState(0);
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -33,12 +35,18 @@ export function B2BHome() {
     if (!isAuthenticated) navigate('/');
   }, [isAuthenticated, navigate]);
 
+  const handleNewChat = () => {
+    setCtx({ status: 'waiting' });
+    setChatKey(k => k + 1);
+  };
+
   return (
     <AppShell
       conversations={CONVERSATIONS}
       user={USER}
       accentBorderColor="rgba(124,58,237,0.2)"
       accentTextColor="#7c3aed"
+      onNewChat={handleNewChat}
       rightPanel={
         <NotificationPanel
           profile="b2b"
@@ -50,7 +58,18 @@ export function B2BHome() {
         <NotificationMobilePanel profile="b2b" onClose={onClose} />
       )}
     >
-      <B2BChat onContextUpdate={setCtx} />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={chatKey}
+          className="h-full"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <B2BChat onContextUpdate={setCtx} />
+        </motion.div>
+      </AnimatePresence>
     </AppShell>
   );
 }

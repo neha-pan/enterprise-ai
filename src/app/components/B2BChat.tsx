@@ -40,6 +40,7 @@ type ChatStage =
   | 'name_found' | 'doc_capturing' | 'ocr_processing'
   | 'name_confirm' | 'success' | 'generic'
   | 'leave_loading' | 'leave_summary' | 'leave_declaration' | 'leave_decl_success'
+  | 'leave_date_ask'
   | 'leave_apply_loading' | 'leave_apply_confirm' | 'leave_apply_submitting' | 'leave_apply_success'
   | 'peers_loading' | 'peers_summary' | 'peers_incentive_loading' | 'peers_incentive'
   | 'rank_loading' | 'rank_summary'
@@ -90,6 +91,17 @@ const isPortfolioIntent = (query: string) => {
     n.includes('portfolio performance') ||
     (n.includes('performance') && n.includes('vs target')) ||
     (n.includes('target') && n.includes('achievement'))
+  );
+};
+
+const isClaimIntent = (query: string) => {
+  const n = query.toLowerCase();
+  return (
+    n.includes('meal claim') || n.includes('food claim') || n.includes('meal expense') ||
+    n.includes('raise a claim') || n.includes('submit a claim') || n.includes('raise claim') ||
+    n.includes('expense claim') || n.includes('food bill') ||
+    n.includes('reimburse') || n.includes('reimbursement') ||
+    n.includes('my claims') || n.includes('claim')
   );
 };
 
@@ -213,6 +225,62 @@ const LEAVE_DATA = [
 const DECL_MONTH = 'February 2026';
 const DECL_REF   = 'LD-2026-00214';
 
+// ── Leave date parser ──────────────────────────────────────────────────────
+
+interface LeaveDate { dateStr: string; duration: string; }
+
+function parseLeaveDateInput(text: string): LeaveDate {
+  const t = text.trim().toLowerCase();
+  const today = new Date();
+
+  const fmt = (d: Date) =>
+    d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  // Range: "5 apr to 7 apr", "5-7 apr", "5 apr – 7 apr"
+  const rangeMatch = t.match(
+    /(\d{1,2})\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*(?:to|–|-)\s*(\d{1,2})\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)?[a-z]*/
+  );
+  if (rangeMatch) {
+    const months: Record<string, number> = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+    const m1 = months[rangeMatch[2]];
+    const m2 = rangeMatch[4] ? months[rangeMatch[4]] : m1;
+    const d1 = new Date(today.getFullYear(), m1, parseInt(rangeMatch[1]));
+    const d2 = new Date(today.getFullYear(), m2, parseInt(rangeMatch[3]));
+    const days = Math.round((d2.getTime() - d1.getTime()) / 86400000) + 1;
+    return { dateStr: `${fmt(d1)} – ${fmt(d2)}`, duration: `${days} day(s)` };
+  }
+
+  // today / tmrw / tomorrow
+  if (t.includes('today')) {
+    return { dateStr: fmt(today), duration: '1 day(s)' };
+  }
+  if (t.includes('tomorrow') || t.includes('tmrw')) {
+    const d = new Date(today); d.setDate(d.getDate() + 1);
+    return { dateStr: fmt(d), duration: '1 day(s)' };
+  }
+  if (t.includes('half day') || t.includes('half-day')) {
+    return { dateStr: `${fmt(today)} (Second Half)`, duration: '0.5 day(s)' };
+  }
+
+  // Single date: "5 apr", "april 5"
+  const singleMatch = t.match(/(\d{1,2})\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/);
+  const singleMatchRev = t.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*(\d{1,2})/);
+  if (singleMatch) {
+    const months: Record<string, number> = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+    const d = new Date(today.getFullYear(), months[singleMatch[2]], parseInt(singleMatch[1]));
+    return { dateStr: fmt(d), duration: '1 day(s)' };
+  }
+  if (singleMatchRev) {
+    const months: Record<string, number> = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+    const d = new Date(today.getFullYear(), months[singleMatchRev[1]], parseInt(singleMatchRev[2]));
+    return { dateStr: fmt(d), duration: '1 day(s)' };
+  }
+
+  // Fallback: use tomorrow
+  const d = new Date(today); d.setDate(d.getDate() + 1);
+  return { dateStr: fmt(d), duration: '1 day(s)' };
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 export function B2BChat({ onContextUpdate }: Props) {
@@ -232,6 +300,7 @@ export function B2BChat({ onContextUpdate }: Props) {
   const [rankSteps, setRankSteps]               = useState<Step[]>([]);
   const [portfolioSteps, setPortfolioSteps]     = useState<Step[]>([]);
   const [ctx, setCtx] = useState<B2BContext>({ status: 'waiting' });
+  const [leaveDate, setLeaveDate] = useState<LeaveDate | null>(null);
   const endRef     = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -486,8 +555,14 @@ export function B2BChat({ onContextUpdate }: Props) {
         push('assistant', 'declaration_card');
         setStage('leave_declaration');
       }, 300);
+    } else if (action === 'apply_leave') {
+      push('user', 'text', 'Apply for leaves');
+      setTimeout(() => {
+        push('assistant', 'text', "When do you want to apply for leave? You can say 'tomorrow', a specific date like '5 Apr', or a range like '5 Apr to 7 Apr'.");
+        setStage('leave_date_ask');
+      }, 400);
     } else {
-      push('user', 'text', action === 'apply_leave' ? 'Apply for leaves' : 'Apply official travel dates');
+      push('user', 'text', 'Apply official travel dates');
       setTimeout(() => {
         push('assistant', 'text', "I'll help you with that. This feature is coming soon.");
         setStage('generic');
@@ -780,6 +855,7 @@ export function B2BChat({ onContextUpdate }: Props) {
     setPeersSteps([]);
     setPeersIncentiveSteps([]);
     setPortfolioSteps([]);
+    setLeaveDate(null);
     setCtx(resetCtx);
     onContextUpdate(resetCtx);
     setStage('home');
@@ -828,10 +904,15 @@ export function B2BChat({ onContextUpdate }: Props) {
       return;
     }
 
-    if (normalizeIntent(query) === normalizeIntent(CLAIM_TRIGGER)) {
+    if (isClaimIntent(query)) {
       push('user', 'text', query);
       updateCtx({ status: 'active' });
       setTimeout(() => startClaimJourney(), 300);
+      return;
+    }
+
+    if (isIncentiveIntent(query)) {
+      startPeersIncentiveJourney(query);
       return;
     }
 
@@ -855,8 +936,19 @@ export function B2BChat({ onContextUpdate }: Props) {
       return;
     }
 
+    if (stage === 'leave_date_ask') {
+      const parsed = parseLeaveDateInput(query);
+      setLeaveDate(parsed);
+      startLeaveApplyJourney(query);
+      return;
+    }
+
     if (stage === 'peers_summary') {
-      if (isIncentiveIntent(query)) {
+      if (isClaimIntent(query)) {
+        push('user', 'text', query);
+        updateCtx({ status: 'active' });
+        setTimeout(() => startClaimJourney(), 300);
+      } else if (isIncentiveIntent(query)) {
         startPeersIncentiveJourney(query);
       } else {
         push('user', 'text', query);
@@ -867,7 +959,7 @@ export function B2BChat({ onContextUpdate }: Props) {
       return;
     }
 
-    if (stage === 'generic' || stage === 'success' || stage === 'leave_decl_success' || stage === 'claim_submitted' || stage === 'leave_apply_success') {
+    if (stage === 'generic' || stage === 'success' || stage === 'leave_decl_success' || stage === 'claim_submitted' || stage === 'leave_apply_success' || stage === 'rank_summary' || stage === 'portfolio_summary' || stage === 'do_cancelled') {
       handleIntentSend(query);
     }
   };
@@ -1483,11 +1575,6 @@ export function B2BChat({ onContextUpdate }: Props) {
 
             // ── peers incentive card ──────────────────────────────────
             if (m.type === 'peers_incentive_card') {
-              const tiers = [
-                { slab: 'Tier 1', range: '< 80%',    multiplier: '1.0x', status: 'Cleared',             statusColor: 'var(--status-success)' },
-                { slab: 'Tier 2', range: '80–100%',  multiplier: '1.2x', status: 'Current',             statusColor: 'var(--status-warning)' },
-                { slab: 'Tier 3', range: '> 100%',   multiplier: '1.5x', status: 'Unlock at Rs 150L',   statusColor: 'var(--text-secondary)' },
-              ];
               return (
                 <motion.div key={m.id}
                   initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
@@ -1505,9 +1592,9 @@ export function B2BChat({ onContextUpdate }: Props) {
                     {/* Stats */}
                     <div className="rounded-xl p-4 mb-4 space-y-2" style={{ backgroundColor: 'var(--surface-2)' }}>
                       {[
-                        { label: 'Accrued',                   value: '₹45,200' },
+                        { label: 'Accrued',                    value: '₹45,200' },
                         { label: 'Projected (at current pace)', value: '₹62,000' },
-                        { label: 'Max potential',              value: '₹85,000' },
+                        { label: 'Max Potential',               value: '₹85,000' },
                       ].map(row => (
                         <div key={row.label} className="flex justify-between items-center text-xs">
                           <span style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
@@ -1516,29 +1603,26 @@ export function B2BChat({ onContextUpdate }: Props) {
                       ))}
                     </div>
 
-                    {/* Nudge */}
-                    <p className="text-xs mb-4 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                      You're in <strong style={{ color: 'var(--text-primary)' }}>Tier 2 (80–100%)</strong>. Crossing 100% of your target unlocks a <strong style={{ color: 'var(--text-primary)' }}>1.5x multiplier</strong>.
-                    </p>
-
-                    {/* Tier table */}
-                    <div className="rounded-xl overflow-hidden mb-4" style={{ border: '1px solid var(--border-subtle)' }}>
-                      <div className="grid grid-cols-4 px-3 py-2"
-                        style={{ backgroundColor: 'var(--surface-2)', borderBottom: '1px solid var(--border-subtle)' }}>
-                        {['Slab', 'Range', 'Multiplier', 'Status'].map(h => (
-                          <span key={h} className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>{h}</span>
-                        ))}
-                      </div>
-                      {tiers.map((tier, i) => (
-                        <div key={tier.slab} className="grid grid-cols-4 items-center px-3 py-2.5"
-                          style={{ borderBottom: i < tiers.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-                          <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{tier.slab}</span>
-                          <span className="text-xs tabular-nums" style={{ color: 'var(--text-secondary)' }}>{tier.range}</span>
-                          <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{tier.multiplier}</span>
-                          <span className="text-xs font-medium" style={{ color: tier.statusColor }}>{tier.status}</span>
+                    {/* Tier text rows */}
+                    <div className="space-y-2 mb-4">
+                      {[
+                        { slab: 'Tier 1', range: '< 80%',   multiplier: '1.0x', icon: '✅', status: 'Cleared',          statusColor: 'var(--status-success)' },
+                        { slab: 'Tier 2', range: '80–100%', multiplier: '1.2x', icon: '⭐', status: 'Current',           statusColor: 'var(--status-warning)' },
+                        { slab: 'Tier 3', range: '> 100%',  multiplier: '1.5x', icon: '🔒', status: 'Unlock at ₹150L',  statusColor: 'var(--text-secondary)' },
+                      ].map(tier => (
+                        <div key={tier.slab} className="flex items-center justify-between text-xs px-1">
+                          <span className="font-medium w-10" style={{ color: 'var(--text-primary)' }}>{tier.slab}</span>
+                          <span className="w-14 tabular-nums" style={{ color: 'var(--text-secondary)' }}>{tier.range}</span>
+                          <span className="font-semibold w-10 tabular-nums" style={{ color: 'var(--text-primary)' }}>{tier.multiplier}</span>
+                          <span className="font-medium" style={{ color: tier.statusColor }}>{tier.icon} {tier.status}</span>
                         </div>
                       ))}
                     </div>
+
+                    {/* Nudge */}
+                    <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                      You're in <strong style={{ color: 'var(--text-primary)' }}>Tier 2 (80-100%)</strong>. Cross 100% target to unlock <strong style={{ color: 'var(--text-primary)' }}>1.5x multiplier!</strong>
+                    </p>
 
                   </div>
                 </motion.div>
@@ -1551,8 +1635,8 @@ export function B2BChat({ onContextUpdate }: Props) {
               const details = [
                 { label: 'Leave Category',    value: 'Privilege Leave' },
                 { label: 'Leave Sub-Category', value: 'Personal Leave' },
-                { label: 'Duration',          value: '0.5 day(s)' },
-                { label: 'Date',              value: '02 Apr 2026 (Second Half)' },
+                { label: 'Duration',          value: leaveDate?.duration ?? '1 day(s)' },
+                { label: 'Date',              value: leaveDate?.dateStr ?? '02 Apr 2026' },
                 { label: 'Reason',            value: 'Attending a family function' },
               ];
               return (
@@ -1619,8 +1703,8 @@ export function B2BChat({ onContextUpdate }: Props) {
             if (m.type === 'leave_apply_success_card') {
               const summaryRows = [
                 { label: 'Leave Type',  value: 'Privilege Leave – Personal' },
-                { label: 'Date',        value: '02 Apr 2026 (Second Half)' },
-                { label: 'Duration',    value: '0.5 day(s)' },
+                { label: 'Date',        value: leaveDate?.dateStr ?? '02 Apr 2026' },
+                { label: 'Duration',    value: leaveDate?.duration ?? '1 day(s)' },
                 { label: 'Reference',   value: 'LV-2026-04821', mono: true },
                 { label: 'Status',      value: 'Pending approval' },
               ];
@@ -1642,7 +1726,7 @@ export function B2BChat({ onContextUpdate }: Props) {
                           Leave applied successfully
                         </div>
                         <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                          Your half-day leave for 2 Apr 2026 has been submitted
+                          Your leave for {leaveDate?.dateStr ?? '02 Apr 2026'} has been submitted
                         </div>
                       </div>
                     </div>
@@ -2333,12 +2417,19 @@ export function B2BChat({ onContextUpdate }: Props) {
                     <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
                       Your meal claim for <strong>{CLAIM_BILL.vendor}</strong> ({CLAIM_BILL.total}) has been submitted for approval.
                     </p>
-                    <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium"
+                    <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium mb-4"
                       style={{ backgroundColor: 'var(--surface-1)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
                       <span>Ref: <strong style={{ color: 'var(--text-primary)' }}>{CLAIM_BILL.ref}</strong></span>
                       <span>·</span>
                       <span>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                     </div>
+                    <button
+                      onClick={handleStartAnotherRequest}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80 active:scale-[0.97]"
+                      style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}>
+                      <RefreshCw size={14} style={{ color: 'var(--text-secondary)' }} />
+                      Start new chat
+                    </button>
                   </div>
                 </motion.div>
               );
@@ -2347,7 +2438,7 @@ export function B2BChat({ onContextUpdate }: Props) {
             return null;
           })}
 
-          {(stage === 'peers_incentive' || stage === 'rank_summary') && (
+          {(stage === 'peers_incentive' || stage === 'rank_summary' || stage === 'portfolio_summary') && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
               className="flex justify-center mt-2 mb-4">
@@ -2379,6 +2470,7 @@ export function B2BChat({ onContextUpdate }: Props) {
               stage === 'peers_summary'           ? 'Ask about your incentives or performance…' :
               stage === 'rank_summary'            ? 'What would you like to do next?' :
               stage === 'portfolio_summary'       ? 'What would you like to do next?' :
+              stage === 'leave_date_ask'          ? "e.g. 'tomorrow', '5 Apr', '5–7 Apr'" :
               stage === 'leave_apply_confirm'    ? 'Confirm or cancel above' :
               stage === 'leave_apply_submitting' ? 'Submitting…' :
               stage === 'do_intent'           ? 'Choose an option above' :
@@ -2394,6 +2486,7 @@ export function B2BChat({ onContextUpdate }: Props) {
             }
             disabled={
               stage !== 'ask_lan' &&
+              stage !== 'leave_date_ask' &&
               stage !== 'success' &&
               stage !== 'generic' &&
               stage !== 'leave_decl_success' &&

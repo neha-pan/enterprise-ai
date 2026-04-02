@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   Store,
   AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 
 // ── DMS suggestive categories ──────────────────────────────────────────────
@@ -138,6 +139,12 @@ export const SalesChat = () => {
     { id: 'ptp_tracker', label: 'Check my PTP tracker', icon: <BarChart2 size={18} /> },
     { id: 'open_cases', label: 'Check open cases for resolution', icon: <CheckCircle2 size={18} /> },
   ];
+
+  const handleReset = () => {
+    setMessages([]);
+    setFlowState('GREETING');
+    setPrefillText('');
+  };
 
   // --- Helpers ---
 
@@ -369,78 +376,87 @@ export const SalesChat = () => {
     return null;
   };
 
+  const chatTransition = { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const };
+
   // ── Welcome / greeting state — centred layout matching HR / AI Unit ──────
-  if (flowState === 'GREETING') {
-    return (
-      <div className="flex flex-col items-center justify-center h-full px-4 py-8 gap-5 overflow-y-auto">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2 }}
-            style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}
-          >
-            Hi Rahul
-          </motion.p>
-          <motion.h1
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2 }}
-            style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}
-          >
-            Where should we start?
-          </motion.h1>
-        </div>
-
-        <div className="w-full max-w-xl">
-          <ChatComposer
-            placeholder="How can I help you today?"
-            prefillValue={prefillText}
-            onSendMessage={handleSendMessage}
-          />
-        </div>
-
-        <SuggestiveActions
-          categories={DMS_CATEGORIES}
-          onHoverPrompt={setPrefillText}
-          onSelectPrompt={handleSendMessage}
-        />
-      </div>
-    );
-  }
-
-  // ── Chat state — message feed + pinned bottom input ───────────────────────
+  // ── Chat state — message feed + pinned bottom input ──────────────────────
   return (
-    <div className="flex flex-col h-full max-w-2xl mx-auto px-4 sm:px-0 relative">
-
-      <div className="flex-1 overflow-y-auto space-y-4 scrollbar-hide px-[12px] pt-[24px] pb-[128px]">
-        {messages.map((msg) => (
-          <div key={msg.id}>
-            {renderMessageContent(msg)}
+    <AnimatePresence mode="wait">
+      {flowState === 'GREETING' ? (
+        <motion.div
+          key="greeting"
+          className="flex flex-col items-center justify-center h-full px-4 py-8 gap-5 overflow-y-auto"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={chatTransition}
+        >
+          <div className="flex flex-col items-center gap-2 text-center">
+            <p style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+              Hi Rahul
+            </p>
+            <h1 style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}>
+              Where should we start?
+            </h1>
           </div>
-        ))}
 
-        {flowState === 'SUCCESS' && (
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full py-4 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 text-green-700 dark:text-green-400 rounded-xl font-medium flex items-center justify-center gap-2 mt-4"
-          >
-            <CheckCircle2 size={20} />
-            Retry Payment
-          </motion.button>
-        )}
+          <div className="w-full max-w-xl">
+            <ChatComposer
+              placeholder="How can I help you today?"
+              prefillValue={prefillText}
+              onSendMessage={handleSendMessage}
+            />
+          </div>
 
-        <div ref={messagesEndRef} className="h-4" />
-      </div>
+          <SuggestiveActions
+            categories={DMS_CATEGORIES}
+            onHoverPrompt={setPrefillText}
+            onSelectPrompt={handleSendMessage}
+          />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="chat"
+          className="flex flex-col h-full max-w-2xl mx-auto px-4 sm:px-0 relative"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={chatTransition}
+        >
+          <div className="flex-1 overflow-y-auto space-y-4 scrollbar-hide px-[12px] pt-[24px] pb-[128px]">
+            {messages.map((msg) => (
+              <div key={msg.id}>
+                {renderMessageContent(msg)}
+              </div>
+            ))}
 
-      <div className="absolute bottom-0 left-0 right-0 px-4 pb-6 pt-12 bg-gradient-to-t from-gray-50 via-gray-50 dark:from-[#1a1a1f] dark:via-[#1a1a1f] to-transparent z-10">
-        <ChatComposer
-          placeholder={flowState === 'SUCCESS' ? 'Anything else?' : 'Processing…'}
-          disabled={flowState !== 'SUCCESS'}
-          onSendMessage={handleSendMessage}
-        />
-      </div>
-    </div>
+            {flowState === 'SUCCESS' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex justify-center mt-2 mb-4">
+                <button
+                  onClick={handleReset}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all hover:opacity-80 active:scale-[0.97]"
+                  style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                  <RefreshCw size={13} />
+                  Start new chat
+                </button>
+              </motion.div>
+            )}
+
+            <div ref={messagesEndRef} className="h-4" />
+          </div>
+
+          <div className="absolute bottom-0 left-0 right-0 px-4 pb-6 pt-12 bg-gradient-to-t from-gray-50 via-gray-50 dark:from-[#1a1a1f] dark:via-[#1a1a1f] to-transparent z-10">
+            <ChatComposer
+              placeholder={flowState === 'SUCCESS' ? 'Anything else?' : 'Processing…'}
+              disabled={flowState !== 'SUCCESS'}
+              onSendMessage={handleSendMessage}
+            />
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   ShieldCheck,
   Banknote,
@@ -30,7 +30,9 @@ interface Message {
     | 'product_details_loader'
     | 'product_details_table'
     | 'pending_approvals_loader'
-    | 'pending_approvals_table';
+    | 'pending_approvals_table'
+    | 'branch_perf_loader'
+    | 'branch_perf_table';
 }
 
 type BotStage =
@@ -43,6 +45,8 @@ type BotStage =
   | 'product_details_table'
   | 'pending_approvals_loading'
   | 'pending_approvals_table'
+  | 'branch_perf_loading'
+  | 'branch_perf_table'
   | 'done';
 
 const DEV_SUMMARY_QUERY = 'Show me a summary of all credit deviations raised under my region this month';
@@ -52,6 +56,7 @@ const PRODUCT_WISE_DETAILS_QUERY = 'Show product-wise details';
 const HIGHEST_APPROVAL_QUERY = 'Which product has the highest approval rate?';
 const BUSINESS_LOAN_TAT_QUERY = 'Why are Business Loans slower on TAT?';
 const PENDING_APPROVALS_QUERY = 'How many credit deviations are currently pending my approval? Show me the oldest ones first';
+const BRANCH_PERF_QUERY = 'Show me branch-wise credit ops performance this month — TAT, deviation rate, and disbursal volume';
 
 const PENDING_APPROVALS_DATA = [
   {
@@ -121,6 +126,20 @@ const PENDING_APPROVALS_LOADER_STEPS = [
   'Querying approval queue in Credit Ops DB',
   'Fetching case details and deviation reasons',
   'Sorting cases by oldest submission date',
+] as const;
+
+const BRANCH_PERF_LOADER_STEPS = [
+  'Fetching branch case data',
+  'Calculating deviation rates',
+  'Preparing branch summary',
+] as const;
+
+const BRANCH_PERF_DATA = [
+  { branch: 'Hadapsar',    cases: 50, deviations: 6, pct: '12%', reasons: 'LTV beyond eligibility, Approval amount > FOIR' },
+  { branch: 'Kharadi',     cases: 50, deviations: 3, pct: '6%',  reasons: 'Repayment account mismatch, Minor documentation gaps' },
+  { branch: 'Viman Nagar', cases: 50, deviations: 5, pct: '10%', reasons: 'Approval amount > eligibility, ABB shortfall' },
+  { branch: 'Wagholi',     cases: 50, deviations: 2, pct: '4%',  reasons: 'One-off policy exception, Process lapse' },
+  { branch: 'Chakan',      cases: 50, deviations: 4, pct: '8%',  reasons: 'LTV deviation, Manual override without note' },
 ] as const;
 
 const RCOMMS_CATEGORIES: SuggestiveCategory[] = [
@@ -239,6 +258,7 @@ export function RcommsChat() {
   const [disbursalSteps, setDisbursalSteps] = useState<Step[]>(() => buildSteps([...DISBURSAL_LOADER_STEPS]));
   const [productDetailsSteps, setProductDetailsSteps] = useState<Step[]>(() => buildSteps([...PRODUCT_DETAILS_LOADER_STEPS]));
   const [pendingApprovalsSteps, setPendingApprovalsSteps] = useState<Step[]>(() => buildSteps([...PENDING_APPROVALS_LOADER_STEPS]));
+  const [branchPerfSteps, setBranchPerfSteps] = useState<Step[]>(() => buildSteps([...BRANCH_PERF_LOADER_STEPS]));
   const [actionedCases, setActionedCases] = useState<Record<string, 'approved' | 'rejected'>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -279,6 +299,8 @@ export function RcommsChat() {
       setBotStage('done');
     } else if (text === PENDING_APPROVALS_QUERY) {
       setBotStage('pending_approvals_loading');
+    } else if (text === BRANCH_PERF_QUERY) {
+      setBotStage('branch_perf_loading');
     } else {
       setBotStage('dev_l1');
     }
@@ -615,7 +637,77 @@ export function RcommsChat() {
       setBotStage('done');
       return;
     }
+
+    // ── Flow 6: Branch Performance ────────────────────────────────────────
+    if (botStage === 'branch_perf_loading') {
+      const loaderId = `bot-loader-branch-perf-${Date.now()}`;
+      setBranchPerfSteps(buildSteps([...BRANCH_PERF_LOADER_STEPS]));
+      setMessages(prev => [...prev, {
+        id: loaderId,
+        text: '',
+        type: 'assistant',
+        variant: 'branch_perf_loader',
+      }]);
+
+      const t1 = setTimeout(() => {
+        setBranchPerfSteps([
+          { id: 'step-1', label: BRANCH_PERF_LOADER_STEPS[0], status: 'completed' },
+          { id: 'step-2', label: BRANCH_PERF_LOADER_STEPS[1], status: 'running' },
+          { id: 'step-3', label: BRANCH_PERF_LOADER_STEPS[2], status: 'pending' },
+        ]);
+      }, 700);
+
+      const t2 = setTimeout(() => {
+        setBranchPerfSteps([
+          { id: 'step-1', label: BRANCH_PERF_LOADER_STEPS[0], status: 'completed' },
+          { id: 'step-2', label: BRANCH_PERF_LOADER_STEPS[1], status: 'completed' },
+          { id: 'step-3', label: BRANCH_PERF_LOADER_STEPS[2], status: 'running' },
+        ]);
+      }, 1400);
+
+      const t3 = setTimeout(() => {
+        setBranchPerfSteps(prev => prev.map(s => ({ ...s, status: 'completed' as Step['status'] })));
+      }, 2400);
+
+      const t4 = setTimeout(() => {
+        setMessages(prev => [
+          ...prev.filter(m => m.id !== loaderId),
+          {
+            id: `bot-${Date.now()}`,
+            text: '',
+            type: 'assistant',
+            variant: 'branch_perf_table',
+          },
+        ]);
+        setBotStage('branch_perf_table');
+      }, 2900);
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+        clearTimeout(t4);
+      };
+    }
+
+    if (botStage === 'branch_perf_table') {
+      setBotStage('done');
+      return;
+    }
   }, [botStage]);
+
+  const handleReset = () => {
+    setMessages([]);
+    setBotStage('idle');
+    setPrefillText('');
+    setComposerPlaceholder(undefined);
+    setDevSteps(buildSteps([...DEV_LOADER_STEPS]));
+    setDisbursalSteps(buildSteps([...DISBURSAL_LOADER_STEPS]));
+    setProductDetailsSteps(buildSteps([...PRODUCT_DETAILS_LOADER_STEPS]));
+    setPendingApprovalsSteps(buildSteps([...PENDING_APPROVALS_LOADER_STEPS]));
+    setBranchPerfSteps(buildSteps([...BRANCH_PERF_LOADER_STEPS]));
+    setActionedCases({});
+  };
 
   const hasMessages = messages.length > 0;
 
@@ -983,61 +1075,187 @@ export function RcommsChat() {
       );
     }
 
+    if (message.variant === 'branch_perf_loader') {
+      return (
+        <div className="w-full">
+          <ProgressCard title="Pulling branch performance data" steps={branchPerfSteps} />
+        </div>
+      );
+    }
+
+    if (message.variant === 'branch_perf_table') {
+      return (
+        <div className="flex justify-start w-full">
+          <div className="w-full flex flex-col gap-3">
+            {/* Summary bubble */}
+            <div
+              className="rounded-xl px-4 py-3.5 flex flex-col gap-2"
+              style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}
+            >
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Here's the branch-wise deviation summary for this week.
+              </p>
+              <div className="flex flex-col gap-1.5 mt-0.5">
+                {[
+                  { label: 'Total cases reviewed', value: '~250 / week' },
+                  { label: 'Total deviations',     value: '20' },
+                  { label: 'Overall deviation rate', value: '8%' },
+                ].map(row => (
+                  <div key={row.label} className="flex items-baseline gap-2 text-sm">
+                    <span style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
+                    <span className="font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
+              <div
+                className="mt-1 pt-2.5 flex flex-col gap-1.5"
+                style={{ borderTop: '1px solid var(--border-subtle)' }}
+              >
+                <div className="flex items-start gap-2 text-sm">
+                  <span className="shrink-0" style={{ color: 'var(--text-secondary)' }}>Concentration</span>
+                  <span style={{ color: 'var(--text-primary)' }}>~55% of deviations from Hadapsar &amp; Viman Nagar</span>
+                </div>
+                <div className="flex items-start gap-2 text-sm">
+                  <span className="shrink-0" style={{ color: 'var(--text-secondary)' }}>Nature</span>
+                  <span style={{ color: 'var(--text-primary)' }}>Predominantly policy-bound but process-led</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Branch table */}
+            <div
+              className="rounded-xl overflow-hidden"
+              style={{ border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-1)' }}
+            >
+              <table className="w-full table-fixed text-xs">
+                <colgroup>
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '40%' }} />
+                </colgroup>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-2)' }}>
+                    {['Branch', 'Cases Reviewed', 'No. of Deviations', 'Deviation %', 'Top Deviation Reasons'].map(h => (
+                      <th
+                        key={h}
+                        className="px-3 py-2.5 text-left font-medium uppercase tracking-wide"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {BRANCH_PERF_DATA.map((row, i) => (
+                    <motion.tr
+                      key={row.branch}
+                      initial={{ opacity: 0, y: 3 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.18, delay: 0.05 + i * 0.07 }}
+                      style={{ borderBottom: i < BRANCH_PERF_DATA.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}
+                    >
+                      <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--text-primary)' }}>
+                        {row.branch}
+                      </td>
+                      <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+                        {row.cases}
+                      </td>
+                      <td className="px-3 py-2.5 tabular-nums font-medium" style={{ color: 'var(--text-primary)' }}>
+                        {row.deviations}
+                      </td>
+                      <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        {row.pct}
+                      </td>
+                      <td className="px-3 py-2.5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                        {row.reasons}
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return <BotMessageText text={message.text} isLoading={message.isLoading} />;
   };
 
+  const chatTransition = { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const };
+
   return (
     <>
-      {hasMessages ? (
-        <div className="flex flex-col h-full overflow-hidden">
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 flex flex-col gap-4">
-              {messages.map(message => (
-                <div key={message.id} style={{ animation: 'slideUpFade 250ms ease-out' }}>
-                  {renderMessage(message)}
-                </div>
-              ))}
-              <div ref={messagesEndRef} style={{ height: '4rem' }} />
-            </div>
-          </div>
-
-          <div
-            className="shrink-0 border-t px-4 py-4"
-            style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--surface-1)' }}
+      <AnimatePresence mode="wait">
+        {hasMessages ? (
+          <motion.div
+            key="chat"
+            className="flex flex-col h-full overflow-hidden"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={chatTransition}
           >
-            <div className="max-w-2xl mx-auto">
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 flex flex-col gap-4">
+                {messages.map(message => (
+                  <div key={message.id} style={{ animation: 'slideUpFade 250ms ease-out' }}>
+                    {renderMessage(message)}
+                  </div>
+                ))}
+                <div ref={messagesEndRef} style={{ height: '4rem' }} />
+              </div>
+            </div>
+
+            <div
+              className="shrink-0 border-t px-4 py-4"
+              style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--surface-1)' }}
+            >
+              <div className="max-w-2xl mx-auto">
+                <ChatComposer
+                  placeholder={composerPlaceholder}
+                  onSendMessage={handleSendMessage}
+                  onNewConversation={handleReset}
+                />
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="welcome"
+            className="flex flex-col items-center justify-center h-full px-4 py-8 gap-5 overflow-y-auto"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={chatTransition}
+          >
+            <div className="flex flex-col items-center gap-3 text-center">
+              <p style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                Hi Amit
+              </p>
+              <h1 style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}>
+                Where should we start?
+              </h1>
+            </div>
+
+            <div className="w-full max-w-xl">
               <ChatComposer
-                placeholder={composerPlaceholder}
-                onSendMessage={handleSendMessage}
+                prefillValue={prefillText}
+                onSendMessage={(q) => { setPrefillText(''); handleSendMessage(q); }}
               />
             </div>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-full px-4 py-8 gap-5 overflow-y-auto">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <p style={{ fontSize: '32px', fontFamily: "'Lora', serif", fontWeight: 300, color: 'var(--text-primary)', lineHeight: 1.2 }}>
-              Hi Amit
-            </p>
-            <h1 style={{ fontSize: '40px', fontFamily: "'Lora', serif", fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15 }}>
-              Where should we start?
-            </h1>
-          </div>
 
-          <div className="w-full max-w-xl">
-            <ChatComposer
-              prefillValue={prefillText}
-              onSendMessage={(q) => { setPrefillText(''); handleSendMessage(q); }}
+            <SuggestiveActions
+              categories={RCOMMS_CATEGORIES}
+              onHoverPrompt={setPrefillText}
+              onSelectPrompt={(q) => setPrefillText(q)}
             />
-          </div>
-
-          <SuggestiveActions
-            categories={RCOMMS_CATEGORIES}
-            onHoverPrompt={setPrefillText}
-            onSelectPrompt={(q) => setPrefillText(q)}
-          />
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <style>{`
         @keyframes slideUpFade {
